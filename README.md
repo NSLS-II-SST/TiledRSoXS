@@ -2,7 +2,7 @@
 A somewhat general IgorPro based browser for Tiled.  Built for RSoXS, but useful in general
 
 todo:  
-1.) primary and monitor selection should be with a list box
+1.) ~~primary and monitor selection should be with a list box~~
 
 2.) baseline and metadata display...
   graphs for baselines, to see changes in some values?
