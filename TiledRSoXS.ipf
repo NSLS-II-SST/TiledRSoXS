@@ -9,7 +9,7 @@ function init_tiled_rsoxs()
 	setdatafolder root:
 	newdatafolder /o/s Packages
 	newdatafolder /o/s RSoXS_Tiled
-	string /g apikey = load_apikey()
+	string /g apikey = "&api_key="+load_apikey()
 	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/"
 	string /g activeurl = "rsoxs"
 	string /g output = ""
