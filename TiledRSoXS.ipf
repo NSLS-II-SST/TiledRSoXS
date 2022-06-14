@@ -395,8 +395,8 @@ Window RSoXSTiled() : Panel
 	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},proc=change_primary_plot_chk
 	CheckBox log_x_axis_p_chk,title="log x axis"
 	CheckBox log_x_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logx
-	ListBox Metadata_listb pos={405,42},size={1260,790},widths={100},listWave=root:Packages:RSoXS_Tiled:metadata_display,mode=2,disable=1
-	ListBox baseline_listb pos={405,42},size={1260,790},widths={100},listWave=root:Packages:RSoXS_Tiled:baseline_display,mode=2,disable=1
+	ListBox Metadata_listb pos={405,42},size={1260,790},widths={150,100},listWave=root:Packages:RSoXS_Tiled:metadata_display,mode=2,disable=1,userColumnResize=1
+	ListBox baseline_listb pos={405,42},size={1260,790},widths={200,100},listWave=root:Packages:RSoXS_Tiled:baseline_display,mode=2,disable=1,userColumnResize=1
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
