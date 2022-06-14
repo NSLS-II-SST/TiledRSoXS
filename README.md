@@ -4,9 +4,9 @@ A somewhat general IgorPro based browser for Tiled.  Built for RSoXS, but useful
 todo:  
 1.) ~~primary and monitor selection should be with a list box~~
 
-2.) ~~baseline and metadata display...
-  graphs for baselines,~~for now no graphs ~~to see changes in some values?
-  listbox display of metadata... columns for different scans?~~
+2.) ~~baseline and metadata display...~~
+  ~~graphs for baselines,~~  for now no graphs  ~~to see changes in some values?~~
+  ~~listbox display of metadata... columns for different scans?~~
   
 3.) QANT import.  all the data is there, just need to copy it to the right folder for QANT to see it.
 
