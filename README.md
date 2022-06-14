@@ -4,9 +4,9 @@ A somewhat general IgorPro based browser for Tiled.  Built for RSoXS, but useful
 todo:  
 1.) ~~primary and monitor selection should be with a list box~~
 
-2.) baseline and metadata display...
-  graphs for baselines, to see changes in some values?
-  listbox display of metadata... columns for different scans?
+2.) ~~baseline and metadata display...~~
+  ~~graphs for baselines,~~  for now no graphs  ~~to see changes in some values?~~
+  ~~listbox display of metadata... columns for different scans?~~
   
 3.) QANT import.  all the data is there, just need to copy it to the right folder for QANT to see it.
 
@@ -18,3 +18,5 @@ todo:
   
 6.) smart loading depending on which tab is selected... skip images if not in the images tab, skip monitors unless on primary or monitors tab
 
+# Installation:  
+For now, just load the procedure file, and a menu item will be added RSoXS->TiledRSoXS which will launch tiled RSoXS.  It is of limited use at the moment, because it requires 1.) an apikey - you are on your own generating that.  and 2.) tunneling into the tiled server (assuming you are using NSLS-II).  I will not be providing support for either of these necessary steps, unfortunately.  Soon it will be opened up such that both of these requirements will be easier.  For now, this can be used within the NSLS-II network and assuming you have finangled an apikey yourself, (or of course you have your own tiled server that you control)
