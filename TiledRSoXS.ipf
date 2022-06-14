@@ -9,7 +9,7 @@ function init_tiled_rsoxs()
 	setdatafolder root:
 	newdatafolder /o/s Packages
 	newdatafolder /o/s RSoXS_Tiled
-	string /g apikey = "&api_key="+load_apikey()
+	string /g apikey = get_apikey()
 	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/"
 	string /g activeurl = "rsoxs"
 	string /g output = ""
@@ -34,15 +34,21 @@ function init_tiled_rsoxs()
 	variable /g xmax_pct = 100
 	variable /g ymin_pct = 0
 	variable /g ymax_pct = 100
-	string /g monitor_list = "SAXS Beamstop;WAXS Beamstop,RSoXS Au Mesh Current;RSoXS Sample Current"
-	string /g primary_list = ""
+	variable /g primary_plot_indv_axes
+	variable /g monitor_plot_indv_axes
+	variable /g monitor_plot_subxoffset
+	variable /g primary_plot_logy
+	variable /g monitor_plot_logy
+	variable /g primary_plot_logx
+	//string /g monitor_list = ""
+	//string /g primary_list = ""
 	
 	make /n=(0,6) /t /o Plans_list
 	make /n=(0) /o plans_sel_wave
 	make /n=6 /t/o plans_col_wave = {"scan_id","plan","sample","pnts","time","uid"}
-	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list
+	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list, primary_list_wave, monitor_list_wave
 	make /n=(0,4) /t /o search_settings
-	make /n=0 /o search_sel_list, image_sel_list
+	make /n=0 /o search_sel_list, image_sel_list, primary_sel_list, monitor_sel_list
 	
 	dowindow /k RSoXSTiled
 	Execute "RSoXSTiled()"
@@ -260,12 +266,11 @@ end
 
 Window RSoXSTiled() : Panel
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /W=(124,53,1820,904)
-	SetDrawLayer UserBack
+	NewPanel /W=(180,52,1876,903)
 	ListBox list0,pos={5.00,266.00},size={386.00,573.00},proc=scanBoxProc
 	ListBox list0,listWave=root:Packages:RSoXS_Tiled:Plans_list
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
-	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,row=1,mode=9
+	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,mode=9
 	ListBox list0,widths={10,20,40,10},userColumnResize=1
 	SetVariable requested_results_val,pos={71.00,243.00},size={43.00,19.00},bodyWidth=43,proc=SetVarProc
 	SetVariable requested_results_val,title=" "
@@ -287,24 +292,11 @@ Window RSoXSTiled() : Panel
 	TabControl View_Tab,pos={397.00,8.00},size={1292.00,835.00},proc=TabProc
 	TabControl View_Tab,tabLabel(0)="Monitors",tabLabel(1)="Primary"
 	TabControl View_Tab,tabLabel(2)="Images",tabLabel(3)="Baseline"
-	TabControl View_Tab,tabLabel(4)="Metadata",value=4
-	PopupMenu Monitor_selection,pos={515.00,36.00},size={93.00,17.00},disable=1,proc=Monitor_chan_sel_proc
-	PopupMenu Monitor_selection,title="monitor"
-	PopupMenu Monitor_selection,mode=1,popvalue="_none_",value=#"get_monitor_list()"
-	Button Remove_Monitor,pos={413.00,37.00},size={50.00,20.00},disable=1,proc=remove_monitor_channel_but_proc
-	Button Remove_Monitor,title="remove"
-	Button Add_Monitor,pos={470.00,37.00},size={31.00,21.00},disable=1,proc=add_monitor_but_proc
-	Button Add_Monitor,title="add"
-	PopupMenu X_Axis_channel_pop,pos={946.00,39.00},size={143.00,17.00},disable=1,proc=Primary_Xaxis_sel_proc
-	PopupMenu X_Axis_channel_pop,title="X-Axis"
-	PopupMenu X_Axis_channel_pop,mode=4,popvalue="en_monoen_readback",value=#"get_primary_channels()"
-	PopupMenu Primary_selection,pos={512.00,38.00},size={199.00,17.00},disable=1,proc=Primary_chan_sel_proc
-	PopupMenu Primary_selection,title="primary Channel"
-	PopupMenu Primary_selection,mode=7,popvalue="RSoXS Sample Current",value=#"get_primary_channels()"
-	Button Remove_Primary,pos={409.00,37.00},size={50.00,20.00},disable=1,proc=remove_primary_channel_but_proc
-	Button Remove_Primary,title="remove"
-	Button Add_Primary,pos={470.00,37.00},size={31.00,21.00},disable=1,proc=add_primary_but_proc
-	Button Add_Primary,title="add"
+	TabControl View_Tab,tabLabel(4)="Metadata",value=1
+	Button deselect_all_monitors,pos={416.00,382.00},size={80.00,21.00},disable=1,proc=deselect_monnitor_but_proc
+	Button deselect_all_monitors,title="deselect all"
+	Button Select_all_Monitors,pos={513.00,381.00},size={80.00,22.00},disable=1,proc=select_all_monitor_but_proc
+	Button Select_all_Monitors,title="select all"
 	SetVariable Catalog_select,pos={9.00,27.00},size={108.00,19.00},bodyWidth=60
 	SetVariable Catalog_select,title="Catalog:"
 	SetVariable Catalog_select,value=root:Packages:RSoXS_Tiled:activeurl
@@ -358,10 +350,41 @@ Window RSoXSTiled() : Panel
 	SetVariable num_requested_results_val,limits={1,100,1},value=root:Packages:RSoXS_Tiled:num_page
 	Button update_apikey,pos={132.00,29.00},size={96.00,16.00},proc=update_api_but
 	Button update_apikey,title="update_apikey"
-	Display/W=(414,68,1680,833)/HOST=# /HIDE=1 
+	ListBox Monitor_listb,pos={411.00,86.00},size={196.00,289.00},disable=1,proc=monitor_sel_channel_proc
+	ListBox Monitor_listb,listWave=root:Packages:RSoXS_Tiled:monitor_list_wave
+	ListBox Monitor_listb,selWave=root:Packages:RSoXS_Tiled:monitor_sel_list,mode=9
+	Button Select_all_Primary,pos={513.00,381.00},size={80.00,22.00},proc=select_all_primary_but_proc
+	Button Select_all_Primary,title="select all"
+	ListBox Primary_listb,pos={411.00,86.00},size={196.00,289.00},proc=Primary_sel_channel_proc
+	ListBox Primary_listb,listWave=root:Packages:RSoXS_Tiled:primary_list_wave
+	ListBox Primary_listb,selWave=root:Packages:RSoXS_Tiled:primary_sel_list,mode=9
+	Button deselect_all_primary,pos={416.00,382.00},size={80.00,21.00},proc=deselect_primary_but_proc
+	Button deselect_all_primary,title="deselect all"
+	PopupMenu X_Axis_channel_pop,pos={416.00,47.00},size={116.00,17.00},proc=Primary_Xaxis_sel_proc
+	PopupMenu X_Axis_channel_pop,title="X-Axis"
+	PopupMenu X_Axis_channel_pop,mode=5,popvalue="en_monoen_cff",value=#"get_primary_channels()"
+	CheckBox individual_y_axis_m_chk,pos={420.00,430.00},size={98.00,16.00},disable=1,proc=Change_monitor_plot_chk
+	CheckBox individual_y_axis_m_chk,title="individual y axes"
+	CheckBox individual_y_axis_m_chk,variable=root:Packages:RSoXS_Tiled:monitor_plot_indv_axes
+	CheckBox log_y_axis_m_chk,pos={420.00,460.00},size={64.00,16.00},disable=1,proc=Change_monitor_plot_chk
+	CheckBox log_y_axis_m_chk,title="log y axes"
+	CheckBox log_y_axis_m_chk,variable=root:Packages:RSoXS_Tiled:monitor_plot_logy
+	CheckBox relative_x_m_axis,pos={420.00,490.00},size={115.00,16.00},disable=1,proc=Change_monitor_plot_chk
+	CheckBox relative_x_m_axis,title="subtract time offset"
+	CheckBox relative_x_m_axis,variable=root:Packages:RSoXS_Tiled:monitor_plot_subxoffset
+	CheckBox individual_y_p_axis_chk,pos={420.00,430.00},size={98.00,16.00},proc=change_primary_plot_chk
+	CheckBox individual_y_p_axis_chk,title="individual y axes"
+	CheckBox individual_y_p_axis_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_indv_axes
+	CheckBox log_y_axis_p_chk,pos={420.00,460.00},size={64.00,16.00},proc=change_primary_plot_chk
+	CheckBox log_y_axis_p_chk,title="log y axes"
+	CheckBox log_y_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logy
+	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},proc=change_primary_plot_chk
+	CheckBox log_x_axis_p_chk,title="log x axis"
+	CheckBox log_x_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logx
+	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
-	Display/W=(414,61,1680,833)/HOST=# /HIDE=1 
+	Display/W=(617,68,1680,833)/HOST=# 
 	RenameWindow #,Primary
 	SetActiveSubwindow ##
 	Display/W=(526,68,1678,833)/HOST=# /HIDE=1 
@@ -493,7 +516,8 @@ function /s get_monitors([monitorlist,plot])
 	string /g list_of_monitor_waves = ""
 	
 	wave/z/t monitor_metadata_urls
-	wave/z/t monitor_metadata
+	wave/z/t monitor_metadata, monitor_list_wave, primary_list_wave
+	wave/z monitor_sel_list, primary_sel_list
 	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
@@ -590,6 +614,8 @@ function /s get_monitors([monitorlist,plot])
 	endfor
 	setdatafolder homedf
 	string /g all_monitor_names_for_sel = monitor_names
+	
+	
 	svar all_primary_names_for_sel
 	wave /t wave_names_from_primary_list
 	string key,value, organized_list=""
@@ -608,6 +634,8 @@ function /s get_monitors([monitorlist,plot])
 		endif
 	endfor
 	all_monitor_names_for_sel = organized_list
+	redimension /n=(itemsinlist(organized_list)) monitor_list_wave, monitor_sel_list
+	monitor_list_wave = stringfromlist(p,organized_list)
 	//get the primary time wave, then go through the monitors
 	for(i=0;i<numpnts(monitor_folders);i++)
 		setdatafolder monitor_folders[i]
@@ -637,7 +665,8 @@ function /s get_monitors([monitorlist,plot])
 			endif
 		endfor
 	endfor
-
+	redimension /n=(itemsinlist(all_primary_names_for_sel)) primary_list_wave, primary_sel_list
+	primary_list_wave = stringfromlist(p,all_primary_names_for_sel)
 	setdatafolder foldersave
 	return list_of_monitor_waves
 end
@@ -660,6 +689,8 @@ function /s get_primary()
 	wave plans_sel_wave
 	variable i,j
 	make /wave /n=0 /o primary_waves
+	wave /t primary_list_wave
+	wave primary_sel_list
 	string uid,uids="", testname, output
 	string list_of_urls = ""
 	string streambase, stream_url, time_url
@@ -819,7 +850,8 @@ function /s get_primary()
 		endif
 	endfor
 	all_primary_names_for_sel = organized_list
-	
+	redimension /n=(itemsinlist(organized_list)) primary_list_wave, primary_sel_list
+	primary_list_wave = stringfromlist(p,organized_list)
 	setdatafolder foldersave
 	return primary_wave_names
 end
@@ -1420,21 +1452,25 @@ function baseline_options(variable disable)
 
 end
 function monitor_options(variable disable)
-	PopupMenu Monitor_selection,win=RSoXSTiled,disable=(disable)
-	Button Remove_Monitor,win=RSoXSTiled,disable=(disable)
-	Button Add_Monitor,win=RSoXSTiled,disable=(disable)
 	setwindow RSoXSTiled#monitors,HIDE=(disable)
 	PopupMenu monitor_color_tab_pop,disable=(disable)
+	CheckBox individual_y_axis_m_chk,disable=(disable)
+	CheckBox log_y_axis_m_chk,disable=(disable)
+	CheckBox relative_x_m_axis,disable=(disable)
+	Button Select_all_monitors,disable=(disable)
+	ListBox monitor_listb,disable=(disable)
+	Button deselect_all_monitors,disable=(disable)
 end
 function primary_options(variable disable)
 	setwindow RSoXSTiled#primary,HIDE=(disable)
-	Button Remove_Primary,win=RSoXSTiled,disable=(disable)
-	Button Add_Primary,win=RSoXSTiled,disable=(disable)
-	PopupMenu Primary_selection,win=RSoXSTiled,disable=(disable)
 	PopupMenu X_Axis_channel_pop,win=RSoXSTiled,disable=(disable)
-	PopupMenu primary_color_tab_pop, disable=(disable)
+	Button Select_all_Primary,disable=(disable)
+	ListBox Primary_listb,disable=(disable)
+	Button deselect_all_primary,disable=(disable)
+	CheckBox individual_y_p_axis_chk,disable=(disable)
+	CheckBox log_y_axis_p_chk,disable=(disable)
+	CheckBox log_x_axis_p_chk,disable=(disable)
 end
-
 
 
 Function Add_search(ba) : ButtonControl
@@ -2077,6 +2113,9 @@ function update_monitor_plots()
 	svar channels = root:Packages:RSoXS_Tiled:all_monitor_names_for_sel
 	wave /t wave_list = root:Packages:RSoXS_Tiled:wave_names_from_monitor_list
 	svar /z plotted_channels = root:Packages:RSoXS_Tiled:monitor_plot_channels
+	nvar logy = root:Packages:RSoXS_Tiled:monitor_plot_logy
+	nvar seperate_axes = root:Packages:RSoXS_Tiled:monitor_plot_indv_axes
+	nvar sub_time_axis = root:Packages:RSoXS_Tiled:monitor_plot_subxoffset
 	string tnames = tracenameList("RSoXSTiled#monitors","",1)
 	variable i,j
 	for(i=itemsinlist(tnames)-1;i>=0;i--)
@@ -2096,9 +2135,18 @@ function update_monitor_plots()
 		wavelocs = wave_list[chan_idx]
 		for(j=0;j<itemsinlist(wavelocs);j+=1)
 			wave /z datawave = $stringfromlist(j,wavelocs)
+			if(seperate_axes)
+				appendtograph /w=RSoXSTiled#monitors /b/l=$Cleanupname(nameofwave(datawave),0)  datawave[][0] /TN=$(Cleanupname(nameofwave(datawave),0)+num2str(j)) vs datawave[][1]
+				ModifyGraph /w=RSoXSTiled#monitors nticks($Cleanupname(nameofwave(datawave),0))=0,freePos($Cleanupname(nameofwave(datawave),0))=0,noLabel($Cleanupname(nameofwave(datawave),0))=2
+				ModifyGraph /w=RSoXSTiled#monitors log($Cleanupname(nameofwave(datawave),0))=logy
+			else
+				appendtograph /w=RSoXSTiled#monitors /l/b  datawave[][0] /TN=$(Cleanupname(nameofwave(datawave),0)+num2str(j)) vs datawave[][1]
+				ModifyGraph /w=RSoXSTiled#monitors log(left)=logy
+			endif
+			if(sub_time_axis)
+				ModifyGraph /w=RSoXSTiled#monitors offset($(Cleanupname(nameofwave(datawave),0)+num2str(j)))={-datawave[0][1]+1,0}
+			endif
 
-			appendtograph /w=RSoXSTiled#monitors datawave[][0] vs datawave[][1]
-			
 		endfor
 	endfor
 	svar color =  root:Packages:RSoXS_Tiled:monitor_color
@@ -2113,6 +2161,9 @@ function update_primary_plots()
 	DFREF homedf = getdataFolderDFR()
 	svar channels = root:Packages:RSoXS_Tiled:all_primary_names_for_sel
 	svar xaxis = root:Packages:RSoXS_Tiled:primary_x_axis
+	nvar logx = root:Packages:RSoXS_Tiled:primary_plot_logx
+	nvar logy = root:Packages:RSoXS_Tiled:primary_plot_logy
+	nvar seperate_axes = root:Packages:RSoXS_Tiled:primary_plot_indv_axes
 	wave /t wave_list = root:Packages:RSoXS_Tiled:wave_names_from_primary_list
 	svar /z plotted_channels = root:Packages:RSoXS_Tiled:primary_plot_channels
 	string tnames = tracenameList("RSoXSTiled#Primary","",1)
@@ -2139,11 +2190,25 @@ function update_primary_plots()
 			setdatafolder getwavesDataFolderDFR(datawave)
 			wave /z xwave = $xaxis
 			if(waveexists(xwave) && waveexists(datawave))
-				appendtograph /w=RSoXSTiled#Primary datawave vs xwave
+				if(seperate_axes)
+					appendtograph /w=RSoXSTiled#Primary /l=$Cleanupname(nameofwave(datawave),0) datawave vs xwave
+					ModifyGraph /w=RSoXSTiled#Primary nticks($Cleanupname(nameofwave(datawave),0))=0,freePos($Cleanupname(nameofwave(datawave),0))=0,noLabel($Cleanupname(nameofwave(datawave),0))=2
+				else
+					appendtograph /w=RSoXSTiled#Primary datawave vs xwave
+				endif
+				ModifyGraph /w=RSoXSTiled#Primary log(left)=logy
+				ModifyGraph /w=RSoXSTiled#Primary log(bottom)=logx
 			else
 				wave /z xwave = $(xaxis+"0")
 				if(waveexists(xwave) && waveexists(datawave))
-					appendtograph /w=RSoXSTiled#Primary datawave vs xwave
+					if(seperate_axes)
+						appendtograph /w=RSoXSTiled#Primary /l=$Cleanupname(nameofwave(datawave),0) datawave vs xwave
+						ModifyGraph /w=RSoXSTiled#Primary nticks($Cleanupname(nameofwave(datawave),0))=0,freePos($Cleanupname(nameofwave(datawave),0))=0,noLabel($Cleanupname(nameofwave(datawave),0))=2
+						ModifyGraph /w=RSoXSTiled#Primary log($Cleanupname(nameofwave(datawave),0))=logy
+					else
+						appendtograph /w=RSoXSTiled#Primary datawave vs xwave
+					endif
+					ModifyGraph /w=RSoXSTiled#Primary log(bottom)=logx
 				endif
 			endif
 		endfor
@@ -2484,160 +2549,6 @@ Function Primary_Xaxis_sel_proc(pa) : PopupMenuControl
 	return 0
 End
 
-Function Primary_chan_sel_proc(pa) : PopupMenuControl
-	STRUCT WMPopupAction &pa
-
-	switch( pa.eventCode )
-		case 2: // mouse up
-			Variable popNum = pa.popNum
-			String popStr = pa.popStr
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			string /g primary_chan_selected
-			primary_chan_selected = popStr
-			setdatafolder foldersave
-			//update_primary_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-Function add_primary_but_proc(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-
-	switch( ba.eventCode )
-		case 2: // mouse up
-			
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			svar /z primary_chan_selected
-			svar /z primary_plot_channels
-			if(!svar_exists(primary_chan_selected))
-				break
-			elseif(!svar_exists(primary_plot_channels))
-				string /g primary_plot_channels = ""
-			endif
-			variable existing_index = whichlistitem(primary_chan_selected,primary_plot_channels)
-			if(existing_index<0)
-				primary_plot_channels += primary_chan_selected +";"
-			endif
-			update_primary_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-Function remove_primary_channel_but_proc(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-
-	switch( ba.eventCode )
-		case 2: // mouse up
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			svar /z primary_chan_selected
-			svar /z primary_plot_channels
-			if(!svar_exists(primary_chan_selected)|| !svar_exists(primary_plot_channels))
-				break
-			endif
-			variable existing_index = whichlistitem(primary_chan_selected,primary_plot_channels)
-			if(existing_index<0)
-				break
-			else
-				primary_plot_channels = removelistItem(existing_index,primary_plot_channels)
-			endif
-			update_primary_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-
-Function Monitor_chan_sel_proc(pa) : PopupMenuControl
-	STRUCT WMPopupAction &pa
-
-	switch( pa.eventCode )
-		case 2: // mouse up
-			Variable popNum = pa.popNum
-			String popStr = pa.popStr
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			string /g monitor_chan_selected
-			monitor_chan_selected = popStr
-			setdatafolder foldersave
-			//update_primary_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-Function add_monitor_but_proc(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-
-	switch( ba.eventCode )
-		case 2: // mouse up
-			
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			svar /z monitor_chan_selected
-			svar /z monitor_plot_channels
-			if(!svar_exists(monitor_chan_selected))
-				break
-			elseif(!svar_exists(monitor_plot_channels))
-				string /g monitor_plot_channels = ""
-			endif
-			variable existing_index = whichlistitem(monitor_chan_selected,monitor_plot_channels)
-			if(existing_index<0)
-				monitor_plot_channels += monitor_chan_selected +";"
-			endif
-			update_monitor_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-Function remove_monitor_channel_but_proc(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-
-	switch( ba.eventCode )
-		case 2: // mouse up
-			dfref foldersave = getdatafolderdfr()
-			setdatafolder root:Packages:RSoXS_Tiled
-			svar /z monitor_chan_selected
-			svar /z monitor_plot_channels
-			if(!svar_exists(monitor_plot_channels)|| !svar_exists(monitor_plot_channels))
-				break
-			endif
-			variable existing_index = whichlistitem(monitor_chan_selected,monitor_plot_channels)
-			if(existing_index<0)
-				break
-			else
-				monitor_plot_channels = removelistItem(existing_index,monitor_plot_channels)
-			endif
-			update_monitor_plots()
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
-
-
 
 function Color_Traces(Colortabname,Graphname)
 	string colortabname, graphname
@@ -2839,4 +2750,161 @@ End
 Menu "RSoXS"
 	"TiledRSoXS", /Q, Execute/P "init_tiled_rsoxs()"
 	help={"Browse and import data from a Tiled server"}
+End
+
+
+function update_primary_list()
+	wave /t lb_wave = root:Packages:RSoXS_Tiled:Primary_list_wave
+	wave lb_sel_wave = root:Packages:RSoXS_Tiled:primary_sel_list
+	dfref foldersave = getdatafolderDFR()
+	setdatafolder root:Packages:RSoXS_Tiled
+	string /g primary_plot_channels
+	variable i
+	primary_plot_channels = ""
+	for(i=0;i<dimsize(lb_sel_wave,0);i++)
+		if(lb_sel_wave[i])
+			primary_plot_channels += lb_wave[i] + ";"
+		endif
+	endfor
+	setdatafolder foldersave
+	update_primary_plots()
+end
+
+function update_monitor_list()
+	wave /t lb_wave = root:Packages:RSoXS_Tiled:monitor_list_wave
+	wave lb_sel_wave = root:Packages:RSoXS_Tiled:monitor_sel_list
+	dfref foldersave = getdatafolderDFR()
+	setdatafolder root:Packages:RSoXS_Tiled
+	string /g monitor_plot_channels
+	variable i
+	monitor_plot_channels = ""
+	for(i=0;i<dimsize(lb_sel_wave,0);i++)
+		if(lb_sel_wave[i])
+			monitor_plot_channels += lb_wave[i] + ";"
+		endif
+	endfor
+	setdatafolder foldersave
+	update_monitor_plots()
+	
+end
+
+
+Function select_all_primary_but_proc(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			// click code here
+			wave primary_sel_list = root:Packages:RSoxs_Tiled:primary_sel_list
+			primary_sel_list = 1
+			update_primary_list()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+Function deselect_primary_but_proc(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			// click code here
+			wave primary_sel_list = root:Packages:RSoxs_Tiled:primary_sel_list
+			primary_sel_list=0
+			update_primary_list()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+Function select_all_monitor_but_proc(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			// click code here
+			wave monitor_sel_list = root:Packages:RSoxs_Tiled:monitor_sel_list
+			monitor_sel_list = 1
+			update_monitor_list()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+Function deselect_monnitor_but_proc(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			// click code here
+			wave monitor_sel_list = root:Packages:RSoxs_Tiled:monitor_sel_list
+			monitor_sel_list = 0
+			update_monitor_list()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+
+Function monitor_sel_channel_proc(lba) : ListBoxControl
+	STRUCT WMListboxAction &lba
+
+	switch( lba.eventCode )
+		case 4: // cell selection
+		case 5: // cell selection plus shift key
+			update_monitor_list()
+	endswitch
+
+	return 0
+End
+
+Function Primary_sel_channel_proc(lba) : ListBoxControl
+	STRUCT WMListboxAction &lba
+
+	switch( lba.eventCode )
+		case 4: // cell selection
+		case 5: // cell selection plus shift key
+			update_primary_list()
+	endswitch
+
+	return 0
+End
+
+
+Function Change_monitor_plot_chk(cba) : CheckBoxControl
+	STRUCT WMCheckboxAction &cba
+
+	switch( cba.eventCode )
+		case 2: // mouse up
+			Variable checked = cba.checked
+			update_monitor_plots()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+
+Function change_primary_plot_chk(cba) : CheckBoxControl
+	STRUCT WMCheckboxAction &cba
+
+	switch( cba.eventCode )
+		case 2: // mouse up
+			Variable checked = cba.checked
+			update_primary_plots()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
 End
