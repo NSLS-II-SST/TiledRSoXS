@@ -46,7 +46,7 @@ function init_tiled_rsoxs()
 	make /n=(0,6) /t /o Plans_list
 	make /n=(0) /o plans_sel_wave
 	make /n=6 /t/o plans_col_wave = {"scan_id","plan","sample","pnts","time","uid"}
-	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list, primary_list_wave, monitor_list_wave
+	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list, primary_list_wave, monitor_list_wave, metadata_display
 	make /n=(0,4) /t /o search_settings
 	make /n=0 /o search_sel_list, image_sel_list, primary_sel_list, monitor_sel_list
 	
@@ -116,7 +116,7 @@ function update_list()
 		make /n=(result_num,6) /t /o Plans_list
 		make /n=(result_num) /o plans_sel_wave, has_darks, done
 		make /n=6 /t/o plans_col_wave = {"scan_id","plan","sample","pnts","time","uid"}
-		make /o/t /n=(result_num) stream_names, metadata_string = ""
+		make /o/t /n=(result_num) stream_names, metadata_string = "", metadata_display
 		variable i,j, keytype, duration
 		string tempstring, keystring, datastring
 		for(i=result_num-1;i>=0;i-=1)
@@ -227,6 +227,20 @@ function update_list()
 			// loading will require listing the contents of /data_vars/ and getting each (in parallel)
 			
 		endfor
+		//make metadata_display which has the same number of columns as metadata_string, and the number of rows as the unique keys in metadata_string
+		string uniquekeys="", key
+		for(i=0;i<dimsize(metadata_string,0);i++)
+			for(j=0;j<itemsinlist(metadata_string[i]);j++)
+				key = stringfromlist(0,stringfromlist(j,metadata_string[i]),":")
+				if(whichListItem(key,uniquekeys)<0)
+					uniquekeys += key + ";"
+				endif
+			endfor
+		endfor
+		redimension /n=(itemsinlist(uniquekeys),dimsize(metadata_string,0)+1) metadata_display
+		metadata_display[][1,] = stringbykey(stringfromlist(p,uniquekeys),metadata_string[q-1])
+		metadata_display[][0] = stringfromlist(p,uniquekeys)
+		
 		setdatafolder foldersave 
 		JSONXOP_Release jsonID
 	endif
@@ -381,6 +395,8 @@ Window RSoXSTiled() : Panel
 	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},proc=change_primary_plot_chk
 	CheckBox log_x_axis_p_chk,title="log x axis"
 	CheckBox log_x_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logx
+	ListBox Metadata_listb pos={405,42},size={1260,790},widths={100},listWave=root:Packages:RSoXS_Tiled:metadata_display,mode=2,disable=1
+	ListBox baseline_listb pos={405,42},size={1260,790},widths={100},listWave=root:Packages:RSoXS_Tiled:baseline_display,mode=2,disable=1
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
@@ -1224,13 +1240,14 @@ function /s get_baseline()
 	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
-	variable i,j
+	variable i,j,k
 	make /wave /n=0 /o baseline_waves
-	string uid,uids="", testname, output
+	string uid,uids="", testname, output, scan_ids = ""
 	string list_of_urls = ""
 	string streambase, stream_url, time_url
 	for(i=0;i<dimsize(plans_sel_wave,0);i++)
 		if(plans_sel_wave[i])
+			scan_ids += plans_list[i][0]+";"
 			uids += plans_list[i][5]+";"
 		endif
 	endfor
@@ -1260,6 +1277,10 @@ function /s get_baseline()
 
 //	multithread outputs = fetch_string(dataurl_wave[p],1) // get the metadata
 	string baseline_wave_names = ""
+	string uniquekeys="scan_id", key
+	variable index, counter
+	make /o /t /n=(1,1) baseline_display = "scan_id"
+	variable numcols = 1
 	for(i=0;i<itemsinlist(uids);i++)
 		output = outputs[i]
 		uid = stringfromlist(i,uids)
@@ -1272,7 +1293,29 @@ function /s get_baseline()
 		make /t /o /n=(itemsinlist(stringfromlist(0,output,"\n"),","),itemsinlist(output,"\n")) baseline
 		baseline[][] = stringfromlist(p,stringfromlist(q,output,"\n"),",")
 		baseline_wave_names += getwavesdataFolder(baseline,2)
+		numcols += itemsinlist(output,"\n")-1
+		redimension /n=(itemsinlist(uniquekeys),numcols) baseline_display
+		baseline_display[0][numcols-itemsinlist(output,"\n")+1,] = stringfromlist(i,scan_ids)
+		for(j=0;j<itemsinlist(stringfromlist(0,output,"\n"),",");j++)
+			
+			key = stringfromlist(j,stringfromlist(0,output,"\n"),",")
+			index = whichListItem(key,uniquekeys)
+			if(index<0)
+				uniquekeys += key + ";"
+				redimension /n=(itemsinlist(uniquekeys)+1,numcols) baseline_display
+				index = itemsinlist(uniquekeys)
+				baseline_display[index][0] = key
+			endif
+			
+			counter=1
+			for(k=numcols-1;k>numcols-itemsinlist(output,"\n");k--)
+				baseline_display[index][k] = stringfromlist(j,stringfromlist(counter,output,"\n"),",")
+				counter++
+			endfor
+		endfor
 	endfor
+	
+	
 	setdatafolder foldersave
 	return baseline_wave_names
 end
@@ -1421,9 +1464,9 @@ Function TabProc(tca) : TabControl
 					primary_options(1)
 					break
 				case 4://metadata
-					metadata_options(1)
+					metadata_options(0)
 					images_options(1)
-					baseline_options(0)
+					baseline_options(1)
 					monitor_options(1)
 					primary_options(1)
 
@@ -1438,7 +1481,7 @@ End
 
 
 function metadata_options(variable disable)
-
+	ListBox Metadata_listb,disable=(disable)
 end
 function images_options(variable disable)
 	setwindow RSoXSTiled#images,HIDE=(disable)
@@ -1449,6 +1492,7 @@ function images_options(variable disable)
 	ListBox Image_sel_lb, disable=(disable)
 end
 function baseline_options(variable disable)
+	ListBox baseline_listb,disable=(disable)
 
 end
 function monitor_options(variable disable)
