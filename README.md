@@ -12,9 +12,9 @@ todo:
 
 4.) NIKA integration??  not convinced it is needed, but perhaps mask / beam centering tools?
 
-5.) live mode.
-  disable paging buttons and search? always load the last n-10 scans, select the most recent scan (allow selection of others, but most recent is required)
-  update the scan list every 2 seconds, monitors, primary and images every 5 seconds
+5.) ~~live mode.~~
+ ~~disable paging buttons and search? always load the last n-10 scans, select the most recent scan (allow selection of others, but most recent is required)~~
+  ~~update the scan list every 2 seconds, monitors, primary and images every 5 seconds~~
   
 6.) smart loading depending on which tab is selected... skip images if not in the images tab, skip monitors unless on primary or monitors tab
 
