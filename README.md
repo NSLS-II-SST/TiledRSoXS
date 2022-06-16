@@ -8,7 +8,7 @@ todo:
   ~~graphs for baselines,~~  for now no graphs  ~~to see changes in some values?~~
   ~~listbox display of metadata... columns for different scans?~~
   
-3.) QANT import.  all the data is there, just need to copy it to the right folder for QANT to see it.
+3.) ~~QANT import.  all the data is there, just need to copy it to the right folder for QANT to see it.~~
 
 4.) NIKA integration??  not convinced it is needed, but perhaps mask / beam centering tools?
 
