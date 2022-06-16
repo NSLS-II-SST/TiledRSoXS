@@ -9,7 +9,7 @@ function init_tiled_rsoxs()
 	setdatafolder root:
 	newdatafolder /o/s Packages
 	newdatafolder /o/s RSoXS_Tiled
-	string /g apikey = get_apikey()
+	get_apikey()
 	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/"
 	string /g activeurl = "rsoxs"
 	string /g output = ""
@@ -24,6 +24,7 @@ function init_tiled_rsoxs()
 	string /g comparison_type_search = "<"
 	string /g primary_color="BlueRedGreen"
 	string /g monitor_color="BlueRedGreen"
+	string /g primary_x_axis="time"
 	
 	
 	string /g colortab = "Terrain"
@@ -46,7 +47,7 @@ function init_tiled_rsoxs()
 	make /n=(0,6) /t /o Plans_list
 	make /n=(0) /o plans_sel_wave
 	make /n=6 /t/o plans_col_wave = {"scan_id","plan","sample","pnts","time","uid"}
-	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list, primary_list_wave, monitor_list_wave, metadata_display
+	make /n=0 /t/o search_list, plotted_monitors, plotted_primary, image_list, primary_list_wave, monitor_list_wave, metadata_display, baseline_display
 	make /n=(0,4) /t /o search_settings
 	make /n=0 /o search_sel_list, image_sel_list, primary_sel_list, monitor_sel_list
 	
@@ -111,7 +112,11 @@ function update_list()
 		endif
 			
 		// how many points
-		JSONXOP_GetArraySize jsonId, "/data"
+		JSONXOP_GetArraySize /q/z jsonId, "/data"
+		if(v_flag)
+			JSONXOP_Release jsonID
+			return 0
+		endif
 		variable result_num = v_value
 		make /n=(result_num,6) /t /o Plans_list
 		make /n=(result_num) /o plans_sel_wave, has_darks, done
@@ -1389,7 +1394,160 @@ Function Tiled_to_QANT(ba) : ButtonControl
 
 	switch( ba.eventCode )
 		case 2: // mouse up
-			// click code here
+			
+			//go to selected uid folders
+			
+			
+			svar /z activeurl = root:Packages:RSoXS_Tiled:activeurl
+			DFREF foldersave = getdatafolderDFR()
+			setdatafolder root:Packages:RSoXS_Tiled
+			DFREF homedf = getdataFolderDFR()
+			
+			wave /T Plans_list, stream_names,metadata_string
+			wave plans_sel_wave
+			variable i,j,k
+			make /wave /n=0 /o waves_to_copy
+			string uids="", scan_ids = "", sample_names = "", plan_names = "", metadata_list = "", wave_names=""
+			string list_of_urls = ""
+			string streambase, stream_url, time_url
+			for(i=0;i<dimsize(plans_sel_wave,0);i++)
+				if(plans_sel_wave[i])
+					scan_ids += plans_list[i][0]+";"
+					uids += plans_list[i][5]+";"
+					plan_names += plans_list[i][1]+";"
+					sample_names += plans_list[i][2]+";"
+					metadata_list += metadata_string[i] + ";"
+					setdatafolder homedf
+					setdatafolder $cleanupname(plans_list[i][5],0)
+					wave_names += wavelist("*",",","DIMS:1,TEXT:0") + ";"
+				endif
+			endfor
+			
+			// get the waves to copy over including all the primary waves
+			// all numeric waves with one dimension wavelist("*",";","DIMS:1,TEXT:0")
+			setdatafolder root:
+			newdatafolder /o/s NEXAFS
+			newdatafolder /O/S Scans
+			DFREF qantscansdf = getdataFolderDFR()
+			string uid,plan_name,sample_name, scan_id, wave_name_list
+			for(i=0;i<itemsinlist(uids);i++)
+				setdatafolder qantscansdf
+				sample_name = stringfromlist(i,sample_names)
+				uid = stringfromlist(i,uids)
+				wave_name_list = stringfromlist(i,wave_names)
+				scan_id = activeurl+stringfromlist(i,scan_ids)
+				newdatafolder /O/S $cleanupname(scan_id,1)
+				string columnlist = ""
+				for(j=0;j<itemsinlist(wave_name_list,",");j++)
+					setdatafolder homedf
+					setdatafolder $cleanupname(uid,0)
+					wave /z datawave = $stringfromlist(j,wave_name_list,",")
+					if(waveexists(datawave))
+						setdatafolder qantscansdf
+						setdatafolder $cleanupname(scan_id,1)
+						duplicate /o datawave, $stringfromlist(j,wave_name_list,",")
+						columnlist += stringfromlist(j,wave_name_list,",") + ";"
+					endif
+				endfor
+				setdatafolder qantscansdf
+				setdatafolder $cleanupname(scan_id,1)
+				make /o /t /n=(itemsinlist(columnlist)) columnnames = stringfromlist(p,columnlist)
+				setdatafolder homedf
+				setdatafolder $cleanupname(uid,0)
+				wave /t baseline
+				setdatafolder qantscansdf
+				setdatafolder $cleanupname(scan_id,1)
+				duplicate /t/o baseline, ExtraPVs
+				
+				string /g metadata = stringfromlist(i,metadata_list)
+				string /g samplename = sample_name
+				string /g filename = stringfromlist(i,uids)
+				string /g filesize = "NA"
+				string /g cdate  = stringbykey("time",metadata)
+				string /g mdate  = stringbykey("time",metadata)
+				
+
+			
+				string /g notes = stringbykey("notes", metadata) + stringbykey("sample_name", metadata)
+				string /g otherstr = stringbykey("dim1", metadata)
+				string /g EnOffsetstr = ""
+				string /g SampleSet = stringbykey("sample_set", metadata)
+				string /g refscan = "Default"
+				string /g darkscan = "Default"
+				string /g enoffset = "Default"
+				
+				wave /z timew
+				if(waveexists(timew))
+					string /g acqtime = num2str(timew[0]) 
+				else
+					string /g acqtime = cdate
+				endif
+				findvalue /text="time" ExtraPvs
+				string /g acqtime = ExtraPVs[v_value][1]
+				findvalue /text="RSoXS Sample Rotation" ExtraPVs
+				string /g anglestr
+				if(strlen(anglestr)*0!=0)
+					anglestr = ExtraPVs[v_value][1]
+				endif
+				
+				
+				variable xloc=nan, yloc=nan, zloc=nan, r1loc=nan, r2loc=nan
+				
+				findvalue /text="RSoXS Sample Outboard-Inboard" ExtraPVs
+				if(v_value >=0)
+					xloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Up-Down" ExtraPVs
+				if(v_value >=0)
+					yloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Downstream-Upstream" ExtraPVs
+				if(v_value >=0)
+					zloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Rotation" ExtraPVs
+				if(v_value >=0)
+					R1loc=90-str2num(ExtraPVs[v_value][2])
+					anglestr =  num2str(90-str2num(ExtraPVs[v_value][2]))
+				endif
+				
+				//findvalue /text="en_monoen_cff" ExtraPVs
+				findvalue /text="en_polarization" ExtraPVs
+			
+				if(v_value >=0)
+					otherstr=ExtraPVs[v_value][2]
+				endif
+				//findvalue /text="en_monoen_cff" ExtraPVs
+				findvalue /text="en_sample_polarization" ExtraPVs
+			
+				if(v_value >=0)
+					otherstr=ExtraPVs[v_value][2]
+				endif
+				
+				if(xloc*yloc*zloc*r1loc*0==0)
+					notes += "( X="+num2str(xloc)+", Y="+num2str(yloc)+", Z="+num2str(zloc)+", R1="+num2str(r1loc)+")"
+				endif
+				
+				duplicate /o ExtraPVs, extrainfo
+				wave /t columnnames
+			
+				wave /z datawave = $(columnnames[0])
+				if(!waveexists(datawave))
+					setdatafolder root:NEXAFS:scans
+					killdatafolder /z cleanupname(scan_id,1)
+					setdatafolder foldersave
+					continue
+				endif
+				if(numpnts(datawave) <5)
+					setdatafolder root:NEXAFS:scans
+					killdatafolder /z cleanupname(scan_id,1)
+					setdatafolder foldersave
+					continue
+				endif
+				setdatafolder foldersave
+				print "Loaded NEXAFS file : " + cleanupname(scan_id,1)
+			endfor
+			setdatafolder foldersave
 			break
 		case -1: // control being killed
 			break
