@@ -19,6 +19,7 @@ function init_tiled_rsoxs()
 	variable /g max_result
 	variable /g num_page = 30
 	variable /g search_type = 5
+	variable /g live_mode = 0
 	string /g key_search = "sample_id"
 	string /g value_search = "P3HT"
 	string /g comparison_type_search = "<"
@@ -57,7 +58,9 @@ function init_tiled_rsoxs()
 
 end
 
-function update_list()
+function update_list([variable skip_scan_update, variable only_last])
+	skip_scan_update = paramisdefault(skip_scan_update)? 0 : skip_scan_update
+	only_last = paramisdefault(only_last)? 0 : only_last
 	svar /z output = root:Packages:RSoXS_Tiled:output
 	dfref FOLDERSAVE = getdatafolderDFR()
 	setdatafolder root:Packages:RSoXS_Tiled
@@ -115,7 +118,7 @@ function update_list()
 		JSONXOP_GetArraySize /q/z jsonId, "/data"
 		if(v_flag)
 			JSONXOP_Release jsonID
-			return 0
+			return -1
 		endif
 		variable result_num = v_value
 		make /n=(result_num,6) /t /o Plans_list
@@ -157,12 +160,12 @@ function update_list()
 				has_darks[i] = v_value
 			endif
 			// get the number of duration
-			JSONXOP_Getvalue /q/z/v jsonId, prefix + "metadata/summary/duration"
-			if(v_flag)
-				has_darks[i] = 1
-			else
-				has_darks[i] = v_value
-			endif
+			//JSONXOP_Getvalue /q/z/v jsonId, prefix + "metadata/summary/duration"
+			//if(v_flag)
+			//	has_darks[i] = 1
+			//else
+			//	has_darks[i] = v_value
+			//endif
 			// get the plan name
 			JSONXOP_Getvalue /q/z/t jsonId, prefix + "metadata/start/sample_name"
 			string sample
@@ -250,6 +253,7 @@ function update_list()
 		JSONXOP_Release jsonID
 	endif
 
+	return 0
 end
 
 
@@ -285,20 +289,21 @@ end
 
 Window RSoXSTiled() : Panel
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /W=(180,52,1876,903)
+	NewPanel /W=(203,53,1899,903)
+	ShowInfo/W=$WinName(0,64)
 	ListBox list0,pos={5.00,266.00},size={386.00,573.00},proc=scanBoxProc
 	ListBox list0,listWave=root:Packages:RSoXS_Tiled:Plans_list
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
 	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,mode=9
-	ListBox list0,widths={10,20,40,10},userColumnResize=1
-	SetVariable requested_results_val,pos={71.00,243.00},size={43.00,19.00},bodyWidth=43,proc=SetVarProc
+	ListBox list0,widths={37,74,147,48,26,37},userColumnResize=1
+	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,19.00},bodyWidth=43,proc=SetVarProc
 	SetVariable requested_results_val,title=" "
 	SetVariable requested_results_val,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:offset
-	Button get_URL1,pos={146.00,241.00},size={22.00,21.00},proc=page_toend
+	Button get_URL1,pos={143.00,241.00},size={24.00,21.00},proc=page_toend
 	Button get_URL1,title=">>"
 	Button get_URL2,pos={119.00,241.00},size={22.00,21.00},proc=page_forward
 	Button get_URL2,title=">"
-	Button get_URL3,pos={12.00,241.00},size={22.00,21.00},proc=page_tobeginning
+	Button get_URL3,pos={15.00,241.00},size={24.00,21.00},proc=page_tobeginning
 	Button get_URL3,title="<<"
 	Button get_URL4,pos={42.00,241.00},size={22.00,21.00},proc=page_backward
 	Button get_URL4,title="<"
@@ -311,7 +316,7 @@ Window RSoXSTiled() : Panel
 	TabControl View_Tab,pos={397.00,8.00},size={1292.00,835.00},proc=TabProc
 	TabControl View_Tab,tabLabel(0)="Monitors",tabLabel(1)="Primary"
 	TabControl View_Tab,tabLabel(2)="Images",tabLabel(3)="Baseline"
-	TabControl View_Tab,tabLabel(4)="Metadata",value=1
+	TabControl View_Tab,tabLabel(4)="Metadata",value=2
 	Button deselect_all_monitors,pos={416.00,382.00},size={80.00,21.00},disable=1,proc=deselect_monnitor_but_proc
 	Button deselect_all_monitors,title="deselect all"
 	Button Select_all_Monitors,pos={513.00,381.00},size={80.00,22.00},disable=1,proc=select_all_monitor_but_proc
@@ -344,19 +349,20 @@ Window RSoXSTiled() : Panel
 	Button catalog_search_remove_but,title="Remove"
 	Button remove_from_search1,pos={329.00,134.00},size={54.00,37.00},proc=remove_all_catalog_search_proc
 	Button remove_from_search1,title="Remove\rAll"
-	CheckBox auto_update_chk,pos={307.00,7.00},size={80.00,16.00}
-	CheckBox auto_update_chk,title="Auto Update",value=0
-	CheckBox log_image,pos={419.00,38.00},size={65.00,16.00},disable=1,proc=change_image_option_proc
+	CheckBox auto_update_chk,pos={308.00,6.00},size={67.00,16.00},proc=Live_mode_chk_proc
+	CheckBox auto_update_chk,title="Live Mode"
+	CheckBox auto_update_chk,variable=root:Packages:RSoXS_Tiled:live_mode
+	CheckBox log_image,pos={419.00,38.00},size={65.00,16.00},proc=change_image_option_proc
 	CheckBox log_image,title="log image",variable=root:Packages:RSoXS_Tiled:logimage
-	PopupMenu color_tab_pop,pos={496.00,36.00},size={200.00,17.00},disable=1,proc=COlorTab_pop_proc
+	PopupMenu color_tab_pop,pos={496.00,36.00},size={200.00,17.00},proc=COlorTab_pop_proc
 	PopupMenu color_tab_pop,mode=8,value=#"\"*COLORTABLEPOP*\""
-	SetVariable min_setv,pos={712.00,34.00},size={85.00,19.00},bodyWidth=60,disable=1,proc=set_image_val_pop
+	SetVariable min_setv,pos={712.00,34.00},size={85.00,19.00},bodyWidth=60,proc=set_image_val_pop
 	SetVariable min_setv,title="min"
-	SetVariable min_setv,limits={1,500000,1},value=root:Packages:RSoXS_Tiled:min_val
-	SetVariable max_setv,pos={801.00,34.00},size={87.00,19.00},bodyWidth=60,disable=1,proc=set_image_val_pop
+	SetVariable min_setv,limits={-10000,500000,1},value=root:Packages:RSoXS_Tiled:min_val
+	SetVariable max_setv,pos={801.00,34.00},size={87.00,19.00},bodyWidth=60,proc=set_image_val_pop
 	SetVariable max_setv,title="max"
 	SetVariable max_setv,limits={3,1e+06,1},value=root:Packages:RSoXS_Tiled:max_val
-	ListBox Image_sel_lb,pos={417.00,80.00},size={94.00,743.00},disable=1,proc=Primary_sel_listbox_proc
+	ListBox Image_sel_lb,pos={417.00,80.00},size={94.00,743.00},proc=Primary_sel_listbox_proc
 	ListBox Image_sel_lb,listWave=root:Packages:RSoXS_Tiled:image_list
 	ListBox Image_sel_lb,selWave=root:Packages:RSoXS_Tiled:image_sel_list,mode=9
 	ListBox Image_sel_lb,widths={500},userColumnResize=1
@@ -372,16 +378,16 @@ Window RSoXSTiled() : Panel
 	ListBox Monitor_listb,pos={411.00,86.00},size={196.00,289.00},disable=1,proc=monitor_sel_channel_proc
 	ListBox Monitor_listb,listWave=root:Packages:RSoXS_Tiled:monitor_list_wave
 	ListBox Monitor_listb,selWave=root:Packages:RSoXS_Tiled:monitor_sel_list,mode=9
-	Button Select_all_Primary,pos={513.00,381.00},size={80.00,22.00},proc=select_all_primary_but_proc
+	Button Select_all_Primary,pos={513.00,381.00},size={80.00,22.00},disable=1,proc=select_all_primary_but_proc
 	Button Select_all_Primary,title="select all"
-	ListBox Primary_listb,pos={411.00,86.00},size={196.00,289.00},proc=Primary_sel_channel_proc
+	ListBox Primary_listb,pos={411.00,86.00},size={196.00,289.00},disable=1,proc=Primary_sel_channel_proc
 	ListBox Primary_listb,listWave=root:Packages:RSoXS_Tiled:primary_list_wave
 	ListBox Primary_listb,selWave=root:Packages:RSoXS_Tiled:primary_sel_list,mode=9
-	Button deselect_all_primary,pos={416.00,382.00},size={80.00,21.00},proc=deselect_primary_but_proc
+	Button deselect_all_primary,pos={416.00,382.00},size={80.00,21.00},disable=1,proc=deselect_primary_but_proc
 	Button deselect_all_primary,title="deselect all"
-	PopupMenu X_Axis_channel_pop,pos={416.00,47.00},size={116.00,17.00},proc=Primary_Xaxis_sel_proc
+	PopupMenu X_Axis_channel_pop,pos={416.00,47.00},size={74.00,17.00},disable=1,proc=Primary_Xaxis_sel_proc
 	PopupMenu X_Axis_channel_pop,title="X-Axis"
-	PopupMenu X_Axis_channel_pop,mode=5,popvalue="en_monoen_cff",value=#"get_primary_channels()"
+	PopupMenu X_Axis_channel_pop,mode=1,popvalue="time",value=#"get_primary_channels()"
 	CheckBox individual_y_axis_m_chk,pos={420.00,430.00},size={98.00,16.00},disable=1,proc=Change_monitor_plot_chk
 	CheckBox individual_y_axis_m_chk,title="individual y axes"
 	CheckBox individual_y_axis_m_chk,variable=root:Packages:RSoXS_Tiled:monitor_plot_indv_axes
@@ -391,24 +397,28 @@ Window RSoXSTiled() : Panel
 	CheckBox relative_x_m_axis,pos={420.00,490.00},size={115.00,16.00},disable=1,proc=Change_monitor_plot_chk
 	CheckBox relative_x_m_axis,title="subtract time offset"
 	CheckBox relative_x_m_axis,variable=root:Packages:RSoXS_Tiled:monitor_plot_subxoffset
-	CheckBox individual_y_p_axis_chk,pos={420.00,430.00},size={98.00,16.00},proc=change_primary_plot_chk
+	CheckBox individual_y_p_axis_chk,pos={420.00,430.00},size={98.00,16.00},disable=1,proc=change_primary_plot_chk
 	CheckBox individual_y_p_axis_chk,title="individual y axes"
 	CheckBox individual_y_p_axis_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_indv_axes
-	CheckBox log_y_axis_p_chk,pos={420.00,460.00},size={64.00,16.00},proc=change_primary_plot_chk
+	CheckBox log_y_axis_p_chk,pos={420.00,460.00},size={64.00,16.00},disable=1,proc=change_primary_plot_chk
 	CheckBox log_y_axis_p_chk,title="log y axes"
 	CheckBox log_y_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logy
-	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},proc=change_primary_plot_chk
+	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},disable=1,proc=change_primary_plot_chk
 	CheckBox log_x_axis_p_chk,title="log x axis"
 	CheckBox log_x_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logx
-	ListBox Metadata_listb pos={405,42},size={1260,790},widths={150,100},listWave=root:Packages:RSoXS_Tiled:metadata_display,mode=2,disable=1,userColumnResize=1
-	ListBox baseline_listb pos={405,42},size={1260,790},widths={200,100},listWave=root:Packages:RSoXS_Tiled:baseline_display,mode=2,disable=1,userColumnResize=1
+	ListBox Metadata_listb,pos={405.00,42.00},size={1260.00,790.00},disable=1
+	ListBox Metadata_listb,listWave=root:Packages:RSoXS_Tiled:metadata_display
+	ListBox Metadata_listb,mode=2,selRow=0,widths={150,100},userColumnResize=1
+	ListBox baseline_listb,pos={405.00,42.00},size={1260.00,790.00},disable=1
+	ListBox baseline_listb,listWave=root:Packages:RSoXS_Tiled:baseline_display
+	ListBox baseline_listb,mode=2,selRow=0,widths={200,100},userColumnResize=1
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
-	Display/W=(617,68,1680,833)/HOST=# 
+	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Primary
 	SetActiveSubwindow ##
-	Display/W=(526,68,1678,833)/HOST=# /HIDE=1 
+	Display/W=(526,68,1678,833)/HOST=# 
 	RenameWindow #,Images
 	SetActiveSubwindow ##
 EndMacro
@@ -514,9 +524,9 @@ Function page_tobeginning(ba) : ButtonControl
 End
 
 
-function /s get_monitors([monitorlist,plot])
-	string monitorlist
-	variable plot
+function /s get_monitors([string monitorlist,variable plot,variable only_last])
+	only_last = paramIsDefault(only_last)? 0 : only_last
+
 	variable nolist = 0
 	
 	svar /z apikey = root:Packages:RSoXS_Tiled:apikey
@@ -694,7 +704,8 @@ end
 
 
 
-function /s get_primary()
+function /s get_primary([variable only_last])
+	only_last = paramIsDefault(only_last)? 0 : only_last
 	
 	svar /z apikey = root:Packages:RSoXS_Tiled:apikey
 	svar /z baseurl = root:Packages:RSoXS_Tiled:baseurl
@@ -717,13 +728,19 @@ function /s get_primary()
 	string streambase, stream_url, time_url
 	string list_of_sample_names = ""
 	string list_of_scan_ids = ""
-	for(i=0;i<dimsize(plans_sel_wave,0);i++)
-		if(plans_sel_wave[i])
-			uids += plans_list[i][5]+";"
-			list_of_sample_names += plans_list[i][2]+";"
-			list_of_scan_ids += plans_list[i][0]+";"
-		endif
-	endfor
+//	if(only_last)
+//		uids = plans_list[dimsize(plans_sel_wave,0)-1][5]+";"
+//		list_of_sample_names += plans_list[dimsize(plans_sel_wave,0)-1][2]+";"
+//		list_of_scan_ids += plans_list[dimsize(plans_sel_wave,0)-1][0]+";"
+//	else
+		for(i=0;i<dimsize(plans_sel_wave,0);i++)
+			if(plans_sel_wave[i])
+				uids += plans_list[i][5]+";"
+				list_of_sample_names += plans_list[i][2]+";"
+				list_of_scan_ids += plans_list[i][0]+";"
+			endif
+		endfor
+//	endif
 	string fieldsstring
 	variable jsonId
 
@@ -742,8 +759,12 @@ function /s get_primary()
 	wave/z/t primary_metadata
 	
 	if(waveexists(primary_metadata_urls) && waveexists(primary_metadata))
-		if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
-			outputs = primary_metadata //open the cached primary metadata string which was already pulled
+		if(numpnts(primary_metadata_urls))
+			if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
+				outputs = primary_metadata //open the cached primary metadata string which was already pulled
+			else
+				multithread outputs = fetch_string(streamurl_wave[p],1)
+			endif
 		else
 			multithread outputs = fetch_string(streamurl_wave[p],1)
 		endif
@@ -877,7 +898,8 @@ function /s get_primary()
 	return primary_wave_names
 end
 
-function /s get_darks()
+function /s get_darks([variable only_last])
+	only_last = paramIsDefault(only_last)? 0 : only_last
 	
 	svar /z apikey = root:Packages:RSoXS_Tiled:apikey
 	svar /z baseurl = root:Packages:RSoXS_Tiled:baseurl
@@ -1270,8 +1292,12 @@ function /s get_baseline()
 	wave/z/t baseline_metadata
 	
 	if(waveexists(baseline_metadata_urls) && waveexists(baseline_metadata))
-		if(!cmpstr(baseline_metadata_urls[0],dataurl_wave[0]) &&numpnts(baseline_metadata) == numpnts(dataurl_wave))
-			outputs = baseline_metadata //open the cached primary metadata string which was already pulled
+		if(numpnts(baseline_metadata_urls))
+			if(!cmpstr(baseline_metadata_urls[0],dataurl_wave[0]) &&numpnts(baseline_metadata) == numpnts(dataurl_wave))
+				outputs = baseline_metadata //open the cached primary metadata string which was already pulled
+			else
+				multithread outputs = fetch_string(dataurl_wave[p],1)
+			endif
 		else
 			multithread outputs = fetch_string(dataurl_wave[p],1)
 		endif
@@ -1910,7 +1936,8 @@ Function Catalog_search_comparison_proc(pa) : PopupMenuControl
 	return 0
 End
 
-function /s get_images([string lims, variable forcedl])
+function /s get_images([string lims, variable forcedl,variable only_last])
+	only_last = paramIsDefault(only_last)? 0 : only_last
 	forcedl =  paramisdefault(forcedl)? 0 : forcedl
 	variable uselimits = 0
 	variable xmin,xmax,ymin,ymax
@@ -2266,13 +2293,15 @@ function MakeImagePlots(num)
 	endfor
 end
 
-function update_scan_selection()
+function update_scan_selection([variable only_last])
+	only_last = paramIsDefault(only_last)? 0 : only_last
+	update_list()
 	get_all_metadata()
-	get_primary()
-	get_darks()
+	get_primary(only_last=only_last)
+	get_darks(only_last=only_last)
 	get_baseline()
-	get_monitors() // this will add to the primary list
-	get_images(forcedl=1)
+	get_monitors(only_last=only_last) // this will add to the primary list
+	get_images(forcedl=1,only_last=only_last)
 	update_monitor_plots()
 	update_primary_plots()
 	update_baseline_display()
@@ -2294,7 +2323,7 @@ function update_image_plots([variable plot])
 	for(i=0;i<itemsinlist(image_wave_list);i++)
 		wave image = $stringfromlist(i,image_wave_list)
 		svar image_names = $(getwavesdataFolder(image,1)+"image_names")
-		for(j=0;j<dimsize(image,2);j++)
+		for(j=0;j<dimsize(image,2) && imnum<numpnts(image_plot_names);j++)
 			IF(PLOT|| strlen(ImageNameList("RSoXSTiled#images#"+image_plot_names[imnum],";"))==0)
 				appendimage /G=1 /w=RSoXSTiled#images#$image_plot_names[imnum] image
 			endif
@@ -3110,3 +3139,124 @@ Function change_primary_plot_chk(cba) : CheckBoxControl
 
 	return 0
 End
+
+
+Function Live_mode_chk_proc(cba) : CheckBoxControl
+	STRUCT WMCheckboxAction &cba
+
+	switch( cba.eventCode )
+		case 2: // mouse up
+			Variable checked = cba.checked
+			if(checked)
+				start_live_mode()
+			else
+				stop_live_mode()
+			endif
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
+
+
+function start_live_mode()
+	Button Add_to_search disable=1
+	Button remove_from_search1 disable=1
+	Button catalog_search_remove_but disable=1
+	Button get_URL2 disable=1
+	Button get_URL1 disable=1
+	Button get_URL4 disable=1
+	Button get_URL3 disable=1
+	SetVariable num_requested_results_val disable=1
+	ListBox Catalog_Searches disable=1
+	SetVariable requested_results_val disable=1
+	dfref FOLDERSAVE = getdatafolderDFR()
+	setdatafolder root:Packages:RSoXS_Tiled
+	wave /t search_list
+	wave plans_sel_wave
+	duplicate /o search_list, search_list_backup
+	duplicate /o plans_sel_wave, plans_sel_backup
+	variable /g offset, offset_backup, max_result, num_page, num_page_backup, running=1,lastRunTicks=0, runnumber=0
+	offset_backup = offset
+	num_page_backup = num_page
+	redimension /n=0 search_list
+	setdatafolder foldersave
+	update_list(skip_scan_update=1)
+	
+	num_page = 100
+	offset = max_result-10
+	doupdate
+	if(update_list(skip_scan_update=1))
+		if(update_list(skip_scan_update=1))
+			update_list(skip_scan_update=1)
+		endif
+	endif
+	doupdate
+	ListBox list0 row=73
+	plans_sel_wave = 0
+	plans_sel_wave[numpnts(plans_sel_wave)-1]=1
+	update_list() // load the last scan
+	CtrlNamedBackground TiledRSoXS_BGTask, burst=0, proc=TiledRSoXS_BGTask,noEvents=1, period=120,dialogsOK=1, start
+	
+end
+
+
+function stop_live_mode()
+	Button Add_to_search disable=0
+	Button remove_from_search1 disable=0
+	Button catalog_search_remove_but disable=0
+	Button get_URL2 disable=0
+	Button get_URL1 disable=0
+	Button get_URL4 disable=0
+	Button get_URL3 disable=0
+	SetVariable num_requested_results_val disable=0
+	ListBox Catalog_Searches disable=0
+	SetVariable requested_results_val disable=0
+	dfref FOLDERSAVE = getdatafolderDFR()
+	setdatafolder root:Packages:RSoXS_Tiled
+	wave /t search_list_backup
+	wave plans_sel_wave, plans_sel_backup
+	
+	CtrlNamedBackground TiledRSoXS_BGTask, stop
+	duplicate /o search_list_backup, search_list
+	setdatafolder foldersave
+	variable /g offset, offset_backup, num_page, num_page_backup,running=0,lastRunTicks=0
+	offset = offset_backup
+	num_page = num_page_backup
+	duplicate /o plans_sel_backup, plans_sel_wave
+	update_list()
+end
+
+Function TiledRSoXS_BGTask(s)
+	STRUCT WMBackgroundStruct &s
+	NVAR running= root:Packages:RSoXS_Tiled:running
+	NVAR live_mode= root:Packages:RSoXS_Tiled:live_mode
+	if( running == 0 )
+		return 0 // not running -- wait for user
+	endif
+	NVAR lastRunTicks= root:Packages:RSoXS_Tiled:lastRunTicks
+	if( (lastRunTicks+300) >= ticks )
+		return 0 // not time yet, wait
+	endif
+	NVAR runNumber= root:Packages:RSoXS_Tiled:runNumber
+	runNumber += 1
+	variable bgcheck= TiledRSoXS_live_update()
+	if(bgcheck<0)
+		live_mode = 0
+		stop_live_mode()
+		running=0
+		return 1
+	endif
+	lastRunTicks= ticks
+	return 0
+End
+
+function TiledRSoXS_live_update()
+	nvar /z max_result = root:Packages:RSoXS_Tiled:max_result
+	nvar /z offset = root:Packages:RSoXS_Tiled:offset
+	nvar /z num_page = root:Packages:RSoXS_Tiled:num_page
+	offset = max_result-max(num_page-10,1)
+	update_scan_selection()
+end
