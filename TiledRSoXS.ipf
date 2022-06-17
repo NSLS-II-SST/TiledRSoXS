@@ -17,9 +17,10 @@ function init_tiled_rsoxs()
 	string /g posturl = "?fields=metadata&page%5Boffset%5D=0&page%5Blimit%5D=100&omit_links=true"
 	variable /g offset = 0
 	variable /g max_result
-	variable /g num_page = 30
+	variable /g num_page = 28
 	variable /g search_type = 5
 	variable /g live_mode = 0
+	variable /g tab_mode = 2
 	string /g key_search = "sample_id"
 	string /g value_search = "P3HT"
 	string /g comparison_type_search = "<"
@@ -289,8 +290,7 @@ end
 
 Window RSoXSTiled() : Panel
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /W=(203,53,1899,903)
-	ShowInfo/W=$WinName(0,64)
+	NewPanel /W=(203,53,1899,903) /k=1
 	ListBox list0,pos={5.00,266.00},size={386.00,573.00},proc=scanBoxProc
 	ListBox list0,listWave=root:Packages:RSoXS_Tiled:Plans_list
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
@@ -436,7 +436,7 @@ Function SetVarProc(sva) : SetVariableControl
 		case 2: // Enter key
 		case 3: // Live update
 			Variable dval = sva.dval
-			update_list()
+			update_scan_selection()
 			break
 		case -1: // control being killed
 			break
@@ -456,7 +456,7 @@ Function page_forward(ba) : ButtonControl
 			nvar /z num_page = root:Packages:RSoXS_Tiled:num_page
 			//if(offset < max_result - 30)
 				offset = offset+num_page
-				update_list()
+				update_scan_selection()
 			//endif
 			break
 		case -1: // control being killed
@@ -477,7 +477,7 @@ Function page_backward(ba) : ButtonControl
 			nvar /z num_page = root:Packages:RSoXS_Tiled:num_page
 			if(offset > 0)
 				offset = max(offset-num_page,0)
-				update_list()
+				update_scan_selection()
 			endif
 			break
 		case -1: // control being killed
@@ -497,7 +497,7 @@ Function page_toend(ba) : ButtonControl
 			nvar /z offset = root:Packages:RSoXS_Tiled:offset
 			nvar /z num_page = root:Packages:RSoXS_Tiled:num_page
 			offset = max_result-max(num_page-10,1)
-			update_list()
+			update_scan_selection()
 			break
 		case -1: // control being killed
 			break
@@ -514,7 +514,7 @@ Function page_tobeginning(ba) : ButtonControl
 		case 2: // mouse up
 			nvar /z offset = root:Packages:RSoXS_Tiled:offset
 			offset = 0
-			update_list()
+			update_scan_selection()
 			break
 		case -1: // control being killed
 			break
@@ -615,17 +615,19 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 	for(i=0;i<numpnts(uids);i+=2) 
 		len1 = strlen(stream_data[i])
 		len2 = strlen(stream_data[i+1])
-		if(len1==len2 && len1>1 )
+		if(min(len1,len2)>1 )
 			setdatafolder homedf
 			newdatafolder /o/s $cleanupname(uids[i],0)
 			string /g monitor_waves = ""
+		else
+			print "failed to get "+uids[i]+" channel: "+streambases[i]+ "length 1 , 2 : " + num2str(len1) + " , " + num2str(len2)
 		endif
 	endfor
 	string monitor_names ="", rawstring, rawstring2
 	for(i=0;i<numpnts(uids);i+=2) 
 		len1 = strlen(stream_data[i])
 		len2 = strlen(stream_data[i+1])
-		if(len1==len2 && len1>1 )
+		if(min(len1,len2)>1)
 			setdatafolder homedf
 			newdatafolder /o/s $cleanupname(uids[i],0)
 			svar monitor_waves
@@ -635,7 +637,7 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 			rawstring2 = stream_data[i+1]
 			wave stream_wave = StringToUnsignedByteWave(rawstring)
 			wave time_wave = StringToUnsignedByteWave(rawstring2)
-			redimension /E=1 /Y=4 /n=(len1/8) stream_wave, time_wave
+			redimension /E=1 /Y=4 /n=(min(len1,len2)/8) stream_wave, time_wave
 			concatenate /o {stream_wave,time_wave}, $cleanupName(streambase,0)
 			wave stream = $cleanupName(streambase,0)
 			list_of_monitor_waves+= getwavesDataFolder(stream,2)+";"
@@ -1618,6 +1620,8 @@ Function TabProc(tca) : TabControl
 	switch( tca.eventCode )
 		case 2: // mouse up
 			Variable tab = tca.tab
+			nvar tab_mode = root:Packages:RSoXS_Tiled:tab_mode
+			tab_mode = tab
 			switch(tab)
 				case 0://monitors
 					metadata_options(1)
@@ -1653,8 +1657,8 @@ Function TabProc(tca) : TabControl
 					baseline_options(1)
 					monitor_options(1)
 					primary_options(1)
-
 			endswitch	
+			update_display()
 			break
 		case -1: // control being killed
 			break
@@ -1724,7 +1728,7 @@ Function Add_search(ba) : ButtonControl
 				search_settings[numpnts(searchlist)-1][1] = stringfromlist(2,search)
 				search_settings[numpnts(searchlist)-1][2] = stringfromlist(3,search)
 				search_settings[numpnts(searchlist)-1][3] = stringfromlist(4,search)
-				update_list()
+				update_scan_selection()
 			endif
 				
 			break
@@ -1750,7 +1754,7 @@ function edit_search_string()
 			search_settings[row][1] = stringfromlist(2,search)
 			search_settings[row][2] = stringfromlist(3,search)
 			search_settings[row][3] = stringfromlist(4,search)
-			update_list()
+			update_scan_selection()
 		endif
 	endif
 
@@ -1869,7 +1873,7 @@ Function remove_catalog_search_proc(ba) : ButtonControl
 					deletepoints i,1, search_sel_list, searchlist, search_settings
 				endif
 			endfor
-			update_list()
+			update_scan_selection()
 			break
 		case -1: // control being killed
 			break
@@ -1888,7 +1892,7 @@ Function remove_all_catalog_search_proc(ba) : ButtonControl
 			wave /t search_settings = root:Packages:RSoXS_Tiled:search_settings
 			wave search_sel_list = root:Packages:RSoXS_Tiled:search_sel_list
 			redimension /n=0 searchlist,search_sel_list, search_settings
-			update_list()
+			update_scan_selection()
 			break
 		case -1: // control being killed
 			break
@@ -2297,16 +2301,43 @@ function update_scan_selection([variable only_last])
 	only_last = paramIsDefault(only_last)? 0 : only_last
 	update_list()
 	get_all_metadata()
-	get_primary(only_last=only_last)
-	get_darks(only_last=only_last)
-	get_baseline()
-	get_monitors(only_last=only_last) // this will add to the primary list
-	get_images(forcedl=1,only_last=only_last)
-	update_monitor_plots()
-	update_primary_plots()
-	update_baseline_display()
-	update_metadata_display()
+	update_display()
+end
 
+function update_display()
+	nvar tab = root:Packages:RSoXS_Tiled:tab_mode
+	switch(tab)
+		case 0: // monitors
+			get_monitors()
+			update_monitor_plots()
+			break
+		case 1: // primary
+			get_primary()
+			get_monitors()
+			update_primary_plots()
+			break
+		case 2: // images
+			get_darks()
+			get_primary()
+			get_images(forcedl=1)
+			break
+		case 3: // baseline
+			get_baseline()
+			update_baseline_display()
+			break
+		case 4: // metadata
+			update_metadata_display()
+			break
+	endswitch
+//	get_primary()
+//	get_darks()
+//	get_baseline()
+//	get_monitors() // this will add to the primary list
+//	get_images(forcedl=1)
+//	update_monitor_plots()
+//	update_primary_plots()
+//	update_baseline_display()
+//	update_metadata_display()
 end
 
 function update_image_plots([variable plot])
@@ -3197,7 +3228,7 @@ function start_live_mode()
 	ListBox list0 row=73
 	plans_sel_wave = 0
 	plans_sel_wave[numpnts(plans_sel_wave)-1]=1
-	update_list() // load the last scan
+	update_scan_selection() // load the last scan
 	CtrlNamedBackground TiledRSoXS_BGTask, burst=0, proc=TiledRSoXS_BGTask,noEvents=1, period=120,dialogsOK=1, start
 	
 end
@@ -3226,7 +3257,7 @@ function stop_live_mode()
 	offset = offset_backup
 	num_page = num_page_backup
 	duplicate /o plans_sel_backup, plans_sel_wave
-	update_list()
+	update_scan_selection()
 end
 
 Function TiledRSoXS_BGTask(s)
