@@ -290,13 +290,14 @@ end
 
 Window RSoXSTiled() : Panel
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /W=(203,53,1899,903) /k=1
+	NewPanel /K=1 /W=(136,58,1832,908)
+	SetDrawLayer UserBack
 	ListBox list0,pos={5.00,266.00},size={386.00,573.00},proc=scanBoxProc
 	ListBox list0,listWave=root:Packages:RSoXS_Tiled:Plans_list
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
 	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,mode=9
 	ListBox list0,widths={37,74,147,48,26,37},userColumnResize=1
-	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,19.00},bodyWidth=43,proc=SetVarProc
+	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,18.00},bodyWidth=43,proc=SetVarProc
 	SetVariable requested_results_val,title=" "
 	SetVariable requested_results_val,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:offset
 	Button get_URL1,pos={143.00,241.00},size={24.00,21.00},proc=page_toend
@@ -307,7 +308,7 @@ Window RSoXSTiled() : Panel
 	Button get_URL3,title="<<"
 	Button get_URL4,pos={42.00,241.00},size={22.00,21.00},proc=page_backward
 	Button get_URL4,title="<"
-	SetVariable requested_results_val1,pos={169.00,243.00},size={43.00,19.00},bodyWidth=43
+	SetVariable requested_results_val1,pos={169.00,243.00},size={43.00,18.00},bodyWidth=43
 	SetVariable requested_results_val1,title=" ",labelBack=(61423,61423,61423)
 	SetVariable requested_results_val1,frame=0,valueColor=(21845,21845,21845)
 	SetVariable requested_results_val1,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:max_result,noedit=1
@@ -321,23 +322,23 @@ Window RSoXSTiled() : Panel
 	Button deselect_all_monitors,title="deselect all"
 	Button Select_all_Monitors,pos={513.00,381.00},size={80.00,22.00},disable=1,proc=select_all_monitor_but_proc
 	Button Select_all_Monitors,title="select all"
-	SetVariable Catalog_select,pos={9.00,27.00},size={108.00,19.00},bodyWidth=60
+	SetVariable Catalog_select,pos={9.00,27.00},size={108.00,18.00},bodyWidth=60
 	SetVariable Catalog_select,title="Catalog:"
 	SetVariable Catalog_select,value=root:Packages:RSoXS_Tiled:activeurl
-	SetVariable Server_select,pos={17.00,7.00},size={218.00,19.00},bodyWidth=179
+	SetVariable Server_select,pos={17.00,7.00},size={218.00,18.00},bodyWidth=179
 	SetVariable Server_select,title="Server:"
 	SetVariable Server_select,value=root:Packages:RSoXS_Tiled:baseurl
 	ListBox Catalog_Searches,pos={27.00,130.00},size={287.00,102.00},proc=search_listbox_proc
 	ListBox Catalog_Searches,listWave=root:Packages:RSoXS_Tiled:search_list
 	ListBox Catalog_Searches,selWave=root:Packages:RSoXS_Tiled:search_sel_list
 	ListBox Catalog_Searches,mode=9,widths={500},userColumnResize=1
-	SetVariable Key_select,pos={37.00,80.00},size={266.00,19.00},bodyWidth=80,proc=change_search_string
+	SetVariable Key_select,pos={34.00,80.00},size={269.00,18.00},bodyWidth=80,proc=change_search_string
 	SetVariable Key_select,title="Key (sample_name, institution etc):"
 	SetVariable Key_select,value=root:Packages:RSoXS_Tiled:key_search
-	SetVariable Value_select1,pos={143.00,104.00},size={162.00,19.00},bodyWidth=127,proc=change_search_string
+	SetVariable Value_select1,pos={143.00,104.00},size={162.00,18.00},bodyWidth=127,proc=change_search_string
 	SetVariable Value_select1,title="value:"
 	SetVariable Value_select1,value=root:Packages:RSoXS_Tiled:value_search,live=1
-	PopupMenu catalog_search,pos={28.00,59.00},size={170.00,17.00},proc=catalog_search_kind_proc
+	PopupMenu catalog_search,pos={28.00,59.00},size={195.00,19.00},proc=catalog_search_kind_proc
 	PopupMenu catalog_search,title="kind of search"
 	PopupMenu catalog_search,mode=5,popvalue="regular expression",value=#"\"Full Text;equals;contains;comparison;regular expression\""
 	PopupMenu catalog_search_comparison,pos={29.00,105.00},size={96.00,19.00},disable=1,proc=Catalog_search_comparison_proc
@@ -349,20 +350,20 @@ Window RSoXSTiled() : Panel
 	Button catalog_search_remove_but,title="Remove"
 	Button remove_from_search1,pos={329.00,134.00},size={54.00,37.00},proc=remove_all_catalog_search_proc
 	Button remove_from_search1,title="Remove\rAll"
-	CheckBox auto_update_chk,pos={308.00,6.00},size={67.00,16.00},proc=Live_mode_chk_proc
+	CheckBox auto_update_chk,pos={308.00,6.00},size={71.00,15.00},proc=Live_mode_chk_proc
 	CheckBox auto_update_chk,title="Live Mode"
 	CheckBox auto_update_chk,variable=root:Packages:RSoXS_Tiled:live_mode
-	CheckBox log_image,pos={419.00,38.00},size={65.00,16.00},proc=change_image_option_proc
+	CheckBox log_image,pos={419.00,38.00},size={69.00,15.00},proc=change_image_option_proc
 	CheckBox log_image,title="log image",variable=root:Packages:RSoXS_Tiled:logimage
-	PopupMenu color_tab_pop,pos={496.00,36.00},size={200.00,17.00},proc=COlorTab_pop_proc
+	PopupMenu color_tab_pop,pos={496.00,36.00},size={200.00,19.00},proc=COlorTab_pop_proc
 	PopupMenu color_tab_pop,mode=8,value=#"\"*COLORTABLEPOP*\""
-	SetVariable min_setv,pos={712.00,34.00},size={85.00,19.00},bodyWidth=60,proc=set_image_val_pop
+	SetVariable min_setv,pos={712.00,34.00},size={85.00,18.00},bodyWidth=60,proc=set_image_val_pop
 	SetVariable min_setv,title="min"
 	SetVariable min_setv,limits={-10000,500000,1},value=root:Packages:RSoXS_Tiled:min_val
-	SetVariable max_setv,pos={801.00,34.00},size={87.00,19.00},bodyWidth=60,proc=set_image_val_pop
+	SetVariable max_setv,pos={801.00,34.00},size={87.00,18.00},bodyWidth=60,proc=set_image_val_pop
 	SetVariable max_setv,title="max"
 	SetVariable max_setv,limits={3,1e+06,1},value=root:Packages:RSoXS_Tiled:max_val
-	ListBox Image_sel_lb,pos={417.00,80.00},size={94.00,743.00},proc=Primary_sel_listbox_proc
+	ListBox Image_sel_lb,pos={417.00,80.00},size={91.00,675.00},proc=Primary_sel_listbox_proc
 	ListBox Image_sel_lb,listWave=root:Packages:RSoXS_Tiled:image_list
 	ListBox Image_sel_lb,selWave=root:Packages:RSoXS_Tiled:image_sel_list,mode=9
 	ListBox Image_sel_lb,widths={500},userColumnResize=1
@@ -370,7 +371,7 @@ Window RSoXSTiled() : Panel
 	PopupMenu primary_color_tab_pop,mode=10,value=#"\"*COLORTABLEPOP*\""
 	PopupMenu monitor_color_tab_pop,pos={1132.00,40.00},size={200.00,17.00},disable=1,proc=monitor_color_pop_proc
 	PopupMenu monitor_color_tab_pop,mode=13,value=#"\"*COLORTABLEPOP*\""
-	SetVariable num_requested_results_val,pos={265.00,244.00},size={118.00,19.00},bodyWidth=43,proc=SetVarProc
+	SetVariable num_requested_results_val,pos={265.00,244.00},size={118.00,18.00},bodyWidth=43,proc=SetVarProc
 	SetVariable num_requested_results_val,title="results / page"
 	SetVariable num_requested_results_val,limits={1,100,1},value=root:Packages:RSoXS_Tiled:num_page
 	Button update_apikey,pos={132.00,29.00},size={96.00,16.00},proc=update_api_but
@@ -385,9 +386,9 @@ Window RSoXSTiled() : Panel
 	ListBox Primary_listb,selWave=root:Packages:RSoXS_Tiled:primary_sel_list,mode=9
 	Button deselect_all_primary,pos={416.00,382.00},size={80.00,21.00},disable=1,proc=deselect_primary_but_proc
 	Button deselect_all_primary,title="deselect all"
-	PopupMenu X_Axis_channel_pop,pos={416.00,47.00},size={74.00,17.00},disable=1,proc=Primary_Xaxis_sel_proc
+	PopupMenu X_Axis_channel_pop,pos={416.00,47.00},size={191.00,19.00},disable=1,proc=Primary_Xaxis_sel_proc
 	PopupMenu X_Axis_channel_pop,title="X-Axis"
-	PopupMenu X_Axis_channel_pop,mode=1,popvalue="time",value=#"get_primary_channels()"
+	PopupMenu X_Axis_channel_pop,mode=11,popvalue="m_en_monoen_readback",value=#"get_primary_channels()"
 	CheckBox individual_y_axis_m_chk,pos={420.00,430.00},size={98.00,16.00},disable=1,proc=Change_monitor_plot_chk
 	CheckBox individual_y_axis_m_chk,title="individual y axes"
 	CheckBox individual_y_axis_m_chk,variable=root:Packages:RSoXS_Tiled:monitor_plot_indv_axes
@@ -397,13 +398,13 @@ Window RSoXSTiled() : Panel
 	CheckBox relative_x_m_axis,pos={420.00,490.00},size={115.00,16.00},disable=1,proc=Change_monitor_plot_chk
 	CheckBox relative_x_m_axis,title="subtract time offset"
 	CheckBox relative_x_m_axis,variable=root:Packages:RSoXS_Tiled:monitor_plot_subxoffset
-	CheckBox individual_y_p_axis_chk,pos={420.00,430.00},size={98.00,16.00},disable=1,proc=change_primary_plot_chk
+	CheckBox individual_y_p_axis_chk,pos={420.00,430.00},size={103.00,15.00},disable=1,proc=change_primary_plot_chk
 	CheckBox individual_y_p_axis_chk,title="individual y axes"
 	CheckBox individual_y_p_axis_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_indv_axes
-	CheckBox log_y_axis_p_chk,pos={420.00,460.00},size={64.00,16.00},disable=1,proc=change_primary_plot_chk
+	CheckBox log_y_axis_p_chk,pos={420.00,460.00},size={68.00,15.00},disable=1,proc=change_primary_plot_chk
 	CheckBox log_y_axis_p_chk,title="log y axes"
 	CheckBox log_y_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logy
-	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={61.00,16.00},disable=1,proc=change_primary_plot_chk
+	CheckBox log_x_axis_p_chk,pos={420.00,490.00},size={65.00,15.00},disable=1,proc=change_primary_plot_chk
 	CheckBox log_x_axis_p_chk,title="log x axis"
 	CheckBox log_x_axis_p_chk,variable=root:Packages:RSoXS_Tiled:primary_plot_logx
 	ListBox Metadata_listb,pos={405.00,42.00},size={1260.00,790.00},disable=1
@@ -412,10 +413,16 @@ Window RSoXSTiled() : Panel
 	ListBox baseline_listb,pos={405.00,42.00},size={1260.00,790.00},disable=1
 	ListBox baseline_listb,listWave=root:Packages:RSoXS_Tiled:baseline_display
 	ListBox baseline_listb,mode=2,selRow=0,widths={200,100},userColumnResize=1
+	Button NRBCopyPos,pos={409.00,766.00},size={106.00,63.00},disable=1,proc=copyloc_but_proc
+	Button NRBCopyPos,title="Copy Location\rfor Spreadsheet"
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
-	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
+	String fldrSav0= GetDataFolder(1)
+	SetDataFolder root:Packages:RSoXS_Tiled:X87960f43_0670_4b60_b926_9a3abfe37edd:
+	Display/W=(617,68,1680,833)/HOST=# /HIDE=1  m_RSoXS_Sample_Current vs m_en_monoen_readback
+	SetDataFolder fldrSav0
+	ModifyGraph rgb=(0,0,65535)
 	RenameWindow #,Primary
 	SetActiveSubwindow ##
 	Display/W=(526,68,1678,833)/HOST=# 
@@ -841,17 +848,17 @@ function /s get_primary([variable only_last])
 		endif
 		
 		enloc = whichlistItem("en_energy_setpoint",columns,",")
-		samxloc = whichlistItem("RSoXS_Sample_Outboard_Inboard",columns,",")
-		samyloc = whichlistItem("RSoXS_Sample_Up_Down",columns,",")
+		samxloc = whichlistItem("RSoXS Sample Outboard-Inboard",columns,",")
+		samyloc = whichlistItem("RSoXS Sample Up-Down",columns,",")
 		string rowstr
 		for(j=1;j<itemsinlist(output,"\n");j+=1)
 			rowstr = stringfromlist(j,output,"\n")
 			if(samxloc>-1 && samyloc>-1)
-				image_names +=  "(" +num2str(str2num(stringfromlist(samxloc,rowstr,","))) + "," + num2str(str2num(stringfromlist(samyloc,rowstr,","))) + ")"+sample_name +";"
+				image_names +=  num2str(j-1) + " (" +num2str(str2num(stringfromlist(samxloc,rowstr,","))) + "," + num2str(str2num(stringfromlist(samyloc,rowstr,","))) + ")"+sample_name +";"
 			elseif(enloc>-1)
 				image_names += num2str(str2num(stringfromlist(enloc,rowstr,","))) + "eV"+sample_name +";"
 			else
-				image_names += num2str(j) +sample_name +";"
+				image_names += num2str(j-1) +sample_name +";"
 			endif
 		endfor
 		if(itemsinlist(image_names)>itemsinlist(longimagenames))
@@ -876,7 +883,7 @@ function /s get_primary([variable only_last])
 		all_primary_names_for_sel += primary_names
 	endfor
 	setdatafolder homedf
-	make /o /n=(itemsinlist(longimagenames)) /t image_list = num2str(p)+" - ("+ stringfromlist(p,longimagenames) + ")"
+	make /o /n=(itemsinlist(longimagenames)) /t image_list = stringfromlist(p,longimagenames)
 	make /o /n=(itemsinlist(longimagenames)) image_sel_list
 	string key,value, organized_list=""
 	variable index
@@ -2556,6 +2563,7 @@ function subtract_darks()
 			k = numberByKey("layer",note(dataw))
 			k = numtype(k)==2 ? 0 : k
 			dataw -= darkw[p][q][darkpnt[min(k+r,numpnts(darkpnt)-1)]]
+			dataw +=100
 		endfor
 		variable /g dark_subtracted = 1
 		
@@ -2777,6 +2785,11 @@ Function Primary_sel_listbox_proc(lba) : ListBoxControl
 			break
 		case 4: // cell selection
 		case 5: // cell selection plus shift key
+			if(sum(selwave)==1)
+				Button NRBCopyPos disable=0
+			else
+				Button NRBCopyPos disable=1
+			endif
 			get_images()
 			break
 		case 6: // begin edit
@@ -3291,3 +3304,96 @@ function TiledRSoXS_live_update()
 	offset = max_result-max(num_page-10,1)
 	update_scan_selection()
 end
+
+function Copyloc()
+	wave selwave = root:Packages:RSoXS_Tiled:image_sel_list
+	wave plans_sel_wave = root:Packages:RSoXS_Tiled:plans_sel_wave
+	wave /T Plans_list = root:Packages:RSoXS_Tiled:Plans_list
+	variable i, num, planstep
+	string uid
+	for(i=0;i<dimsize(plans_sel_wave,0);i+=1)
+		if(plans_sel_wave[i])	
+			planstep = i
+			uid = plans_list[i][5]
+			break
+		endif
+	endfor
+	duplicate /free selwave, tempwave
+	tempwave = selwave[p]&1? 1 : 0
+	num = sum(tempwave)
+	variable step = -1
+	if(num==1)
+		for(i=0;i<dimsize(selwave,0);i+=1)
+			if(selwave[i]&1)	
+				step = i
+				break
+			endif
+		endfor
+	endif
+	if(step>=0)
+		string foldersave = getdatafolder(1)
+		setdatafolder root:Packages:RSoXS_Tiled
+		newdatafolder /o/s $cleanupname(uid,0)
+		variable x = nan
+		variable y = nan
+		variable z = nan
+		variable th = nan
+		// try to use the waves!
+		wave /z rsoxsx = 'RSoXS Sample Outboard-Inboard0'
+		if(waveexists(rsoxsx))
+			x = rsoxsx[step]
+		endif
+		wave /z rsoxsy = 'RSoXS Sample Up-Down0'
+		if(waveexists(rsoxsy))
+			y = rsoxsy[step]
+		endif
+		wave /z rsoxsz = 'RSoXS Sample Downstream-Upstream0'
+		if(waveexists(rsoxsz))
+			z = rsoxsz[step]
+		endif
+		wave /z rsoxsth = 'RSoXS Sample-Rotation0'
+		if(waveexists(rsoxsth))
+			th = rsoxsth[step]
+		endif
+	
+		get_baseline()
+	
+		// use baseline instead
+		wave/z /t baseline
+		if(!waveexists(baseline))
+			setdatafolder foldersave
+			return 0
+		endif
+		findvalue /text="RSoXS Sample Outboard-Inboard" baseline
+		x =x*0!=0? round(100*str2num(baseline[V_value][1]))/100 : x
+		findvalue /text="RSoXS Sample Up-Down" baseline
+		y =y*0!=0?  round(100*str2num(baseline[V_value][1]))/100 : y
+		findvalue /text="RSoXS Sample Downstream-Upstream" baseline
+		z =z*0!=0?  round(100*str2num(baseline[V_value][1]))/100 : z
+		findvalue /text="RSoXS Sample Rotation" baseline
+		th =th*0!=0?  round(100*str2num(baseline[V_value][1]))/100 : th
+		
+		string output = "[{'motor': 'x', 'position': " + num2str(x)
+		output +="}, {'motor': 'y', 'position': " + num2str(y)
+		output +="}, {'motor': 'z', 'position': " + num2str(z)
+		output +="}, {'motor': 'th', 'position': " + num2str(th) + "}]"
+		putscrapText output
+				
+		setdatafolder foldersave
+	endif
+end
+
+Function copyloc_but_proc(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			// click code here
+			copyloc()
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
