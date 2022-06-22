@@ -416,9 +416,7 @@ Window RSoXSTiled() : Panel
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1 
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
-	String fldrSav0= GetDataFolder(1)
-	SetDataFolder root:Packages:RSoXS_Tiled:X87960f43_0670_4b60_b926_9a3abfe37edd:
-	Display/W=(617,68,1680,833)/HOST=# /HIDE=1  m_RSoXS_Sample_Current vs m_en_monoen_readback
+	Display/W=(617,68,1680,833)/HOST=# /HIDE=1
 	SetDataFolder fldrSav0
 	ModifyGraph rgb=(0,0,65535)
 	RenameWindow #,Primary
