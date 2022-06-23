@@ -417,7 +417,6 @@ Window RSoXSTiled() : Panel
 	RenameWindow #,Monitors
 	SetActiveSubwindow ##
 	Display/W=(617,68,1680,833)/HOST=# /HIDE=1
-	SetDataFolder fldrSav0
 	ModifyGraph rgb=(0,0,65535)
 	RenameWindow #,Primary
 	SetActiveSubwindow ##
