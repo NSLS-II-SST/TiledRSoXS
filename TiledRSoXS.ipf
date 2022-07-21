@@ -65,18 +65,19 @@ function update_list([variable skip_scan_update, variable only_last])
 	setdatafolder root:Packages:RSoXS_Tiled
 	string url = get_url_search()
 	if(strlen(url)>5)
-		//output = FetchURL(url)
-		URLRequest /z/time=1 url=url, method=get
-		if(v_flag)
+		output = FetchURL(url)
+		//URLRequest /z/time=1 url=url, method=get
+		if(strlen(output)<500)
 			// try again - server seems to ocassionally hickup
-			URLRequest /z/time=1 url=url, method=get
+			URLRequest /z/time=30 url=url, method=get
 			if(v_flag)
 				setdatafolder foldersave 
 				return v_flag
 				
 			endif
+			output = S_serverResponse
 		endif
-		output = S_serverResponse
+		
 		JSONXOP_Parse output
 		if(v_flag)
 			return v_flag
@@ -91,10 +92,10 @@ function update_list([variable skip_scan_update, variable only_last])
 		offset = max(offset,0)
 		if(offset > max_result-num_page)
 			offset = max(0,max_result-num_page)
-			URLRequest /z/time=1 url=get_url_search(), method=get
+			URLRequest /z/time=30 url=get_url_search(), method=get
 			if(v_flag)
 				// try again - server seems to ocassionally hickup
-				URLRequest /z/time=1 url=get_url_search(), method=get
+				URLRequest /z/time=30 url=get_url_search(), method=get
 				if(v_flag)
 					setdatafolder foldersave 
 					return v_flag
@@ -607,10 +608,10 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 		if(!cmpstr(monitor_metadata_urls[0],urls[0]) &&numpnts(monitor_metadata) == numpnts(urls))
 			stream_data = monitor_metadata //open the cached monitor metadata string which was already pulled
 		else
-			multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],1)
+			multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],30)
 		endif
 	else
-		multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],1)
+		multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],30)
 	endif
 	
 	variable len1, len2
@@ -767,13 +768,13 @@ function /s get_primary([variable only_last])
 			if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
 				outputs = primary_metadata //open the cached primary metadata string which was already pulled
 			else
-				multithread outputs = fetch_string(streamurl_wave[p],1)
+				multithread outputs = fetch_string(streamurl_wave[p],30)
 			endif
 		else
-			multithread outputs = fetch_string(streamurl_wave[p],1)
+			multithread outputs = fetch_string(streamurl_wave[p],30)
 		endif
 	else
-		multithread outputs = fetch_string(streamurl_wave[p],1)
+		multithread outputs = fetch_string(streamurl_wave[p],30)
 	endif
 	
 	
@@ -814,7 +815,7 @@ function /s get_primary([variable only_last])
 	endfor
 	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), outputs
 		
-	multithread outputs = fetch_string(dataurl_wave[p],1) // get the metadata, so we know what columns to grab
+	multithread outputs = fetch_string(dataurl_wave[p],30) // get the metadata, so we know what columns to grab
 	string sample_name,longimagenames=""
 	variable unique_sample, enloc, samxloc, samyloc
 	for(i=0;i<itemsinlist(uids);i++)
@@ -949,10 +950,10 @@ function /s get_darks([variable only_last])
 		if(!cmpstr(dark_metadata_urls[0],streamurl_wave[0]) &&numpnts(dark_metadata) == numpnts(streamurl_wave))
 			outputs = dark_metadata //open the cached primary metadata string which was already pulled
 		else
-			multithread outputs = fetch_string(streamurl_wave[p],1)
+			multithread outputs = fetch_string(streamurl_wave[p],30)
 		endif
 	else
-		multithread outputs = fetch_string(streamurl_wave[p],1)
+		multithread outputs = fetch_string(streamurl_wave[p],30)
 	endif
 	
 	
@@ -991,7 +992,7 @@ function /s get_darks([variable only_last])
 	endfor
 	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), outputs
 		
-	multithread outputs = fetch_string(dataurl_wave[p],1) // get the metadata, so we know what columns to grab
+	multithread outputs = fetch_string(dataurl_wave[p],30) // get the metadata, so we know what columns to grab
 	
 	for(i=0;i<itemsinlist(uids);i++)
 		output = outputs[i]
@@ -1241,7 +1242,7 @@ function get_all_metadata()
 	
 	concatenate /t/free/NP {baseline_metadata_urls, monitor_metadata_urls, dark_metadata_urls, primary_metadata_urls}, all_urls
 	make /n=(numpnts(all_urls)) /t /free server_responses
-	multithread /nt=(numpnts(all_urls)) server_responses = fetch_string(all_urls[p],1)
+	multithread /nt=(numpnts(all_urls)) server_responses = fetch_string(all_urls[p],30)
 	baseline_metadata = server_responses[p]
 	monitor_metadata = server_responses[p+b_pts]
 	dark_metadata = server_responses[p+b_pts+m_pts]
@@ -1300,13 +1301,13 @@ function /s get_baseline()
 			if(!cmpstr(baseline_metadata_urls[0],dataurl_wave[0]) &&numpnts(baseline_metadata) == numpnts(dataurl_wave))
 				outputs = baseline_metadata //open the cached primary metadata string which was already pulled
 			else
-				multithread outputs = fetch_string(dataurl_wave[p],1)
+				multithread outputs = fetch_string(dataurl_wave[p],30)
 			endif
 		else
-			multithread outputs = fetch_string(dataurl_wave[p],1)
+			multithread outputs = fetch_string(dataurl_wave[p],30)
 		endif
 	else
-		multithread outputs = fetch_string(dataurl_wave[p],1)
+		multithread outputs = fetch_string(dataurl_wave[p],30)
 	endif
 
 
@@ -1427,7 +1428,7 @@ Function Tiled_to_QANT(ba) : ButtonControl
 			
 			//go to selected uid folders
 			
-			
+			get_baseline()
 			svar /z activeurl = root:Packages:RSoXS_Tiled:activeurl
 			DFREF foldersave = getdatafolderDFR()
 			setdatafolder root:Packages:RSoXS_Tiled
@@ -1548,11 +1549,11 @@ Function Tiled_to_QANT(ba) : ButtonControl
 					otherstr=ExtraPVs[v_value][2]
 				endif
 				//findvalue /text="en_monoen_cff" ExtraPVs
-				findvalue /text="en_sample_polarization" ExtraPVs
-			
-				if(v_value >=0)
-					otherstr=ExtraPVs[v_value][2]
-				endif
+				//findvalue /text="en_sample_polarization" ExtraPVs
+			//
+			//	if(v_value >=0)
+			//		otherstr=ExtraPVs[v_value][2]
+			//	endif
 				
 				if(xloc*yloc*zloc*r1loc*0==0)
 					notes += "( X="+num2str(xloc)+", Y="+num2str(yloc)+", Z="+num2str(zloc)+", R1="+num2str(r1loc)+")"
@@ -2024,10 +2025,10 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 		if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
 			outputs = primary_metadata //open the cached primary metadata string which was already pulled
 		else
-			multithread outputs = fetch_string(streamurl_wave[p],1)
+			multithread outputs = fetch_string(streamurl_wave[p],30)
 		endif
 	else
-		multithread outputs = fetch_string(streamurl_wave[p],1)
+		multithread outputs = fetch_string(streamurl_wave[p],30)
 	endif
 
 	
@@ -2153,7 +2154,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	endfor
 	if(numpnts(file_paths)>0)
 		//multithread /NT=5 file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],20)
-		file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],20)
+		file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],30)
 	endif
 
 	
@@ -2899,10 +2900,10 @@ function /wave splitsignal(wavein, times, rises, falls, goodpulse)
 	
 	string name = nameofwave(wavein)
 	wave /z waveout = $("_"+name)
-	if(numpnts(wavein)<2* numpnts(times))
-		//print "not valid waves"
-		return waveout
-	endif
+	//if(numpnts(wavein)<2* numpnts(times))
+	//	//print "not valid waves"
+	//	return waveout
+	//endif
 	make /o/n=(dimsize(times,0)) $("m_"+name), $("s_"+name), $("f_"+name)
 	wave waveout = $("m_"+name), stdwave = $("s_"+name), fncwave = $("f_"+name)
 	make /n=(dimsize(times,0)) /free pntlower, pntupper
