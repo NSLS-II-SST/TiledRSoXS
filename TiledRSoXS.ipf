@@ -9,7 +9,7 @@ function init_tiled_rsoxs()
 	newdatafolder /o/s RSoXS_Tiled
 	get_apikey()
 	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/"
-	string /g activeurl = "rsoxs"
+	string /g activeurl = "rsoxs/raw"
 	string /g output = ""
 	string /g preurl = "node/search/"
 	string /g posturl = "?fields=metadata&page%5Boffset%5D=0&page%5Blimit%5D=100&omit_links=true"
@@ -803,14 +803,9 @@ function /s get_primary([variable only_last])
 			if(stringmatch(tempwave[j],"*_image"))
 				continue
 			endif
-			if(strlen(fieldsstring)<1)
-				fieldsstring += "?"
-			else
-				fieldsstring += "&"
-			endif
-			fieldsstring += "field="+URLEncode(tempwave[j])
+			fieldsstring += "&field="+URLEncode(tempwave[j])
 		endfor
-		dataurls += baseurl+"node/full/" + activeurl + "/" + uid + "/primary/data"+fieldsstring+"&format=text/csv" + apikey + ";"
+		dataurls += baseurl+"node/full/" + activeurl + "/" + uid + "/primary/data/?field=time"+fieldsstring+"&format=text/csv" + apikey + ";"
 		JSONXOP_release jsonID
 	endfor
 	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), outputs
