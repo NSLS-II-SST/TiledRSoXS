@@ -579,12 +579,12 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 					streambase = removeEnding(testname,"_monitor")
 					safe_stream_base = URLENCODE(streambase)
 					stream_url = baseurl+"array/full/"+activeurl+ "/"
-					stream_url += uid+"/"+safe_stream_base+"_monitor/data/data_vars/"
-					stream_url += safe_stream_base+"/variable/?format=application/octet-stream" + apikey
+					stream_url += uid+"/"+safe_stream_base+"_monitor/data/"
+					stream_url += safe_stream_base+"/?format=application/octet-stream" + apikey
 					
 					time_url = baseurl+"array/full/"+activeurl+ "/"
-					time_url += uid+"/"+safe_stream_base+"_monitor/timestamps/data_vars/"
-					time_url += safe_stream_base+"/variable/?format=application/octet-stream" + apikey
+					time_url += uid+"/"+safe_stream_base+"_monitor/timestamps/"
+					time_url += safe_stream_base+"/?format=application/octet-stream" + apikey
 					list_of_urls += uid + ","+ streambase + "," + stream_url + ";"+ uid +","+ streambase +","+ time_url + ";"
 				endif
 				
@@ -1136,12 +1136,12 @@ function /wave get_monitor_metadataurls()
 					streambase = removeEnding(testname,"_monitor")
 	
 					stream_url = baseurl+"array/full/"+activeurl+ "/"
-					stream_url += uid+"/"+streambase+"_monitor/data/data_vars/"
-					stream_url += streambase+"/variable/?format=application/octet-stream" + apikey
+					stream_url += uid+"/"+streambase+"_monitor/data/"
+					stream_url += streambase+"/?format=application/octet-stream" + apikey
 					
 					time_url = baseurl+"array/full/"+activeurl+ "/"
-					time_url += uid+"/"+streambase+"_monitor/timestamps/data_vars/"
-					time_url += streambase+"/variable/?format=application/octet-stream" + apikey
+					time_url += uid+"/"+streambase+"_monitor/timestamps/"
+					time_url += streambase+"/?format=application/octet-stream" + apikey
 					list_of_urls += uid + ","+ streambase + "," + stream_url + ";"+ uid +","+ streambase +","+ time_url + ";"
 				endif
 			endfor
@@ -2059,7 +2059,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 			if(!stringmatch(tempwave[j],"*_image"))
 				continue
 			endif
-			JSONXOP_GetValue /free /q /z /wave=shape jsonId, "data/0/attributes/structure/macro/data_vars/"+tempwave[j]+"/macro/variable/macro/shape"
+			JSONXOP_GetValue /free /q /z /wave=shape jsonId, "data/0/attributes/structure/contents/"+tempwave[j]+"/attributes/structure/macro/shape"
 			list_of_image_nums_to_use = ""
 			if(uselist)
 				for(k=0;k<shape[0];k++)
@@ -2097,7 +2097,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 				ymin_str+= ymin_temp+";"
 				ymax_str+= ymax_temp+";"
 				layers += stringfromlist(k,list_of_image_nums_to_use) + ";"
-				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/primary/data/data_vars/"+URLencode(tempwave[j])+"/variable?format=tif" + apikey+"&slice="+stringfromlist(k,list_of_image_nums_to_use) + ";"
+				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/primary/data/"+URLencode(tempwave[j])+"?format=tif" + apikey+"&slice="+stringfromlist(k,list_of_image_nums_to_use) + ";"
 				filenames +=cleanupname(uid,1,20)+replacestring(":",stringfromlist(k,list_of_image_nums_to_use),"a")+cleanupname(tempwave[j],1,10)+";"
 				uid_list += uid + ";"
 				dark_list += "0"+ ";"
@@ -2106,7 +2106,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 				list_of_image_nums_to_use +=":;"
 				x_dims += num2str(shape[2])+";"
 				layers += ";" // always get all darks
-				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/dark/data/data_vars/"+URLencode(tempwave[j])+"/variable?format=tif" + apikey+"&slice=:;"
+				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/dark/data/"+URLencode(tempwave[j])+"?format=tif" + apikey+"&slice=:;"
 				filenames +=cleanupname(uid,1,20)+"d"+cleanupname(tempwave[j],1,9)+";"
 				uid_list += uid + ";"
 				dark_list += darkstr+ ";"
