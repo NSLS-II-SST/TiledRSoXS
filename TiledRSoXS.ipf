@@ -2252,10 +2252,9 @@ function get_slicing_ratio(variable num_images,variable total_pix_x, variable im
 	return ceil(image_pix_X/(total_pix_x/images_on_top_edge))
 end
 
-
 function MakeImagePlots(num)
 	variable num
-	variable numx, numy
+
 	dfref foldersave = getdatafolderdfR()
 	setdatafolder root:Packages:RSoXS_Tiled
 	dfref homedf = getdataFolderDFR()
@@ -2268,15 +2267,8 @@ function MakeImagePlots(num)
 	endif
 	make /o/n=(num) /t image_plot_names
 	
-	
-	numy = max(1,floor(.9*sqrt(num)))
-	numx = ceil((num)/numy)
-	
-	variable sizex, sizey
-	//(414,68,1680,892)
-	getwindow RSOXSTILED#images wsize
-	sizex = floor((v_right-v_left) / numx)
-	sizey = floor((v_bottom-v_top) / numy)
+	variable numy = max(1,floor(.9*sqrt(num)))
+	variable numx = ceil((num)/numy)
 	
 	variable xloc=0, yloc=0
 	variable imnum = 0
@@ -2286,7 +2278,12 @@ function MakeImagePlots(num)
 			if(imnum>=num)
 				break
 			endif
-			Display/W=(sizex*xloc,sizey*yloc,sizex*(xloc+1),sizey*(yloc+1))/HOST=RSOXSTILED#images /n=$image_plot_names[imnum]
+			// 	When all /W values are less than 1, coordinates are assumed to be fractional relative to the host frame size.
+			Variable left = xloc/numx
+			Variable right = (xloc+1)/numx
+			Variable top = yloc/numy
+			Variable bottom = (yloc+1)/numy
+			Display/W=(left,top,right,bottom)/HOST=RSOXSTILED#images /n=$image_plot_names[imnum]
 			imnum+=1
 		endfor
 		if(imnum>=num)
