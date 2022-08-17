@@ -3385,3 +3385,167 @@ Function copyloc_but_proc(ba) : ButtonControl
 
 	return 0
 End
+
+
+function cleanup_fly_NEXAFS([xwaves, ywaves, interps, interpf, minstep, weightforward])
+	// replace the waves in the current graph with smoothed versions
+	// backup waves to orig_+current name
+	// if orig_ name already exists, then use it instead
+	wave /wave /z xwaves // wave of xwaves to clean up
+	wave /wave /z ywaves // identical length wave of ywaves to clean up
+	
+	variable interps, interpf, minstep, weightforward
+	interps=  paramisdefault(interps) ? 1e-12 : interps // the s input to the interpolate2 function
+	interpf=  paramisdefault(interpf) ? 6 : interpf // the f input to the interpolate2 function
+	minstep=  paramisdefault(minstep) ? 0.01 : minstep // the minimum x axis step to enforce
+	weightforward=  paramisdefault(weightforward) ? 1 : weightforward // the weight to use for forward sweeps (backward sweeps are weight 1)
+	
+	variable i,j, current_x, index_orig, index_new
+	if(paramisdefault(xwaves) || paramisdefault(ywaves)) // if x waves or y waves aren't given, they get them from the top graph
+		
+		string traces = TRaceNameList("",";",1)
+		make /wave /o /free /n=(itemsinlist(traces)) xwaves, ywaves
+		
+		for(i=0;i<itemsinlist(traces);i++)
+			wave /z xwave = xwaveRefFromTrace("",stringfromlist(i,traces))
+			wave /z ywave = tracenameToWaveRef("",stringfromlist(i,traces))
+			if(!waveexists(xwave) || !waveexists(ywave))
+				continue
+				// this only works on waves with both x and y waves
+			endif
+			xwaves[i] = xwave
+			ywaves[i] = ywave
+		endfor
+	endif
+	
+	dfref foldersave = getdataFolderDFR()
+	variable min_x, max_x
+	string wave_name, orig_name
+	variable current_weight
+	string wavenames="",xpartname,ypartname
+	if(numpnts(xwaves) != numpnts(ywaves))
+		print "Invalid lists of waves - they must be identical length"
+		return -1
+	endif
+	for(i=0;i<numpnts(xwaves);i+=1)
+		wave xwave = xwaves[i]
+		wave ywave = ywaves[i]
+		if(!waveexists(xwave) || !waveexists(ywave))
+			continue
+				// this only works on waves with both x and y waves
+		endif
+		
+		
+		// handle xwave
+		setdatafolder getwavesdataFolderDFR(xwave)
+		wave_name = nameofwave(xwave)
+		orig_name = "orig_"+wave_name
+		wave /z waveorig = $orig_name
+		if(waveexists(waveorig))
+			// replace the current x wave with the original x wave
+			duplicate /o waveorig, $wave_name
+			wave xwave = $wave_name
+		else
+			// duplicate the xwave to 
+			duplicate xwave, $orig_name
+		endif
+		duplicate/o/free xwave, tempxwave
+		min_x = round(wavemin(xwave))
+		max_x = round(wavemax(xwave))
+		
+		make /o /n=((max_x-min_x)/minstep) $wave_name
+		wave xwave = $wave_name
+		setscale /i x, min_x, max_x, xwave
+		xwave = x
+		
+		// handle ywave
+		
+		setdatafolder getwavesdataFolderDFR(ywave)
+		wave_name = nameofwave(ywave)
+		orig_name = "orig_"+wave_name
+		wave /z waveorig = $orig_name
+		if(waveexists(waveorig))
+			// replace the current x wave with the original x wave
+			duplicate /o waveorig, $wave_name
+			wave ywave = $wave_name
+		else
+			// duplicate the xwave to save name
+			duplicate ywave, $orig_name
+		endif
+		
+		duplicate/o/free ywave, tempywave
+				
+		make /o /n=((max_x-min_x)/minstep) $wave_name
+		wave ywave = $wave_name
+		setscale /i x, min_x, max_x, ywave
+		duplicate /free ywave, sweep_x, sweep_y, interp_sweep
+		current_weight=0
+		// delete pre points
+		do
+			deletePoints 0,1,tempxwave, tempywave
+		
+		while(tempxwave[1]<tempxwave[0])
+		
+		duplicate/o/free tempxwave, smoothedxwave
+		
+		
+		// find the points where we change directions
+		smooth /b=5 101, smoothedxwave
+		differentiate smoothedxwave
+		make /n=0 /free findlevelsw
+		findLevels /q/P/dest=findlevelsw smoothedxwave, 0
+		if(v_flag<1)
+			make /n=0 /o /free findlevelsw
+		endif
+		make /free /o/wave /n=(numpnts(findlevelsw)+1) xwaves, ywaves
+		make /free/o /n=(numpnts(findlevelsw)+1) startpoints, endpoints
+		
+		// Split out each sweep
+		startpoints = p>0 ? findlevelsw[p-1] : 0
+		endpoints= p<numpnts(findlevelsw) ? findlevelsw[p] : numpnts(tempxwave)
+		
+		for(j=0;j<numpnts(startpoints);j++)
+			make /o/free/n=(endpoints[j]-startpoints[j]) xwavepart, ywavepart
+			xwavepart = tempxwave[p+startpoints[j]]
+			ywavepart = tempywave[p+startpoints[j]]
+			sort xwavepart, xwavepart, ywavepart
+			
+			duplicate /o/free ywave, sweep_x, sweep_y, interp_sweep
+			// go through each sweep averaging anything less than the minimum step
+			current_x = min_x + minstep
+			index_orig = 0
+			index_new = 0
+			do
+				if(xwavepart[index_orig] > current_x)
+					// there are no points between where we are and the next min, sep - move to the next one
+					current_x += minstep
+					continue
+				endif
+				findlevel /q /p /R=(index_orig) xwavepart, current_x
+				if(v_flag)
+					break
+				endif
+				sweep_y[index_new] = mean(ywavepart,index_orig,V_LevelX)
+				sweep_x[index_new] = mean(xwavepart,index_orig,V_LevelX)
+				index_new+=1
+				index_orig = ceil(V_LevelX)
+				current_x += minstep
+			while(current_x < max_x)
+			redimension /n=(index_new) sweep_x, sweep_y
+			
+			//interpolate onto a fixed x axis with min step
+			
+			interpolate2 /f=(interpf) /i=3 /t=3 /s=(interps) /y=interp_sweep sweep_x, sweep_y
+			
+			
+			//average the sweeps with optional different weightings from forward (odd) and reverse (even) sweeps
+			if(j/2 == round(j/2))
+				ywave = (ywave * current_weight + interp_sweep * 1)/ (current_weight + 1)
+				current_weight += 1
+			else
+				ywave = (ywave * current_weight + interp_sweep * weightforward)/ (current_weight + weightforward)
+				current_weight += weightforward
+			endif
+		endfor
+	endfor
+end
