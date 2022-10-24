@@ -3282,7 +3282,7 @@ function stop_live_mode()
 	wave /t search_list_backup
 	wave plans_sel_wave, plans_sel_backup
 	
-	CtrlNamedBackground TiledRSoXS_BGTask, stop
+	CtrlNamedBackground TiledRSoXS_BGTask, stop, kill=1
 	duplicate /o search_list_backup, search_list
 	setdatafolder foldersave
 	variable /g offset, offset_backup, num_page, num_page_backup,running=0,lastRunTicks=0
