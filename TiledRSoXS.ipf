@@ -311,8 +311,8 @@ Window RSoXSTiled() : Panel
 	SetVariable requested_results_val1,title=" ",labelBack=(61423,61423,61423)
 	SetVariable requested_results_val1,frame=0,valueColor=(21845,21845,21845)
 	SetVariable requested_results_val1,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:max_result,noedit=1
-	Button Tiled_QANT_but,pos={1521.00,3.00},size={96.00,23.00},proc=Tiled_to_QANT
-	Button Tiled_QANT_but,title="Import to QANT"
+	Button Tiled_QANT_but,pos={1521.00,3.00},size={150,23.00},proc=Tiled_to_QANT
+	Button Tiled_QANT_but,title="Import NEXAFS to QANT"
 	TabControl View_Tab,pos={397.00,8.00},size={1292.00,835.00},proc=TabProc
 	TabControl View_Tab,tabLabel(0)="Monitors",tabLabel(1)="Primary"
 	TabControl View_Tab,tabLabel(2)="Images",tabLabel(3)="Baseline"
@@ -1477,7 +1477,7 @@ Function Tiled_to_QANT(ba) : ButtonControl
 				uid = stringfromlist(i,uids)
 				wave_name_list = stringfromlist(i,wave_names)
 				scan_id = activeurl+stringfromlist(i,scan_ids)
-				newdatafolder /O/S $cleanupname(scan_id,1)
+				newdatafolder /O/S tempscan//$cleanupname(scan_id,1) // make temporary scan folder
 				string columnlist = ""
 				for(j=0;j<itemsinlist(wave_name_list,",");j++)
 					setdatafolder homedf
@@ -1485,19 +1485,19 @@ Function Tiled_to_QANT(ba) : ButtonControl
 					wave /z datawave = $stringfromlist(j,wave_name_list,",")
 					if(waveexists(datawave))
 						setdatafolder qantscansdf
-						setdatafolder $cleanupname(scan_id,1)
+						setdatafolder tempscan
 						duplicate /o datawave, $stringfromlist(j,wave_name_list,",")
 						columnlist += stringfromlist(j,wave_name_list,",") + ";"
 					endif
 				endfor
 				setdatafolder qantscansdf
-				setdatafolder $cleanupname(scan_id,1)
+				setdatafolder tempscan
 				make /o /t /n=(itemsinlist(columnlist)) columnnames = stringfromlist(p,columnlist)
 				setdatafolder homedf
 				setdatafolder $cleanupname(uid,0)
 				wave /t baseline
 				setdatafolder qantscansdf
-				setdatafolder $cleanupname(scan_id,1)
+				setdatafolder tempscan
 				duplicate /t/o baseline, ExtraPVs
 				
 				string /g metadata = stringfromlist(i,metadata_list)
@@ -1575,17 +1575,21 @@ Function Tiled_to_QANT(ba) : ButtonControl
 				wave /z datawave = $(columnnames[0])
 				if(!waveexists(datawave))
 					setdatafolder root:NEXAFS:scans
-					killdatafolder /z cleanupname(scan_id,1)
+					killdatafolder /z tempscan
 					setdatafolder foldersave
 					continue
 				endif
 				if(numpnts(datawave) <5)
 					setdatafolder root:NEXAFS:scans
-					killdatafolder /z cleanupname(scan_id,1)
+					killdatafolder /z tempscan
 					setdatafolder foldersave
 					continue
 				endif
 				setdatafolder foldersave
+				
+				//cleanup scan and duplicate into final folder
+				cleanup_output_NEXAFS("tempscan",cleanupname(scan_id,1))
+				
 				print "Loaded NEXAFS file : " + cleanupname(scan_id,1)
 			endfor
 			setdatafolder foldersave
@@ -1596,6 +1600,11 @@ Function Tiled_to_QANT(ba) : ButtonControl
 
 	return 0
 End
+
+
+
+
+
 
 Function scanBoxProc(lba) : ListBoxControl
 	STRUCT WMListboxAction &lba
@@ -1691,6 +1700,13 @@ function images_options(variable disable)
 	SetVariable min_setv,disable=(disable)
 	SetVariable max_setv,disable=(disable)
 	ListBox Image_sel_lb, disable=(disable)
+	
+	wave lb_sel_wave = root:Packages:RSoXS_Tiled:primary_sel_list
+	if(sum(lb_sel_wave)==1)
+		Button NRBCopyPos, disable=(disable)
+	else
+		Button NRBCopyPos, disable=1
+	endif
 end
 function baseline_options(variable disable)
 	ListBox baseline_listb,disable=(disable)
@@ -3730,4 +3746,166 @@ function cleanup_NEXAFS_channel([interps, interpf, minstep, weightforward])
 			duplicate /o final_x_wave, new_xwave // we will be doing this for each y wave, but it should be identical
 		endfor
 	endfor
+end
+
+
+
+
+function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, weightforward])
+	// makes a new scan with cleaned up channels - original channel is still available, cleaned scan will append clean_ to scanname
+	string orig_name
+	string new_name
+	variable interps, interpf, minstep, weightforward
+	interps=  paramisdefault(interps) ? 1e-12 : interps // the s input to the interpolate2 function
+	interpf=  paramisdefault(interpf) ? 6 : interpf // the f input to the interpolate2 function
+	minstep=  paramisdefault(minstep) ? 0.01 : minstep // the minimum x axis step to enforce
+	weightforward=  paramisdefault(weightforward) ? 1 : weightforward // the weight to use for forward sweeps (backward sweeps are weight 1)
+	
+		
+	string foldersave0 = getdatafolder(1)
+	setdatafolder root:NEXAFS
+	svar x_axis
+	
+	
+	variable i,j, k, current_x, index_orig, index_new
+	
+	variable min_x, max_x
+	string wave_name
+	variable current_weight
+	string wavenames="",xpartname,ypartname
+	
+	variable num_bad_points =0, numdeleted_channels
+	
+
+	setdatafolder root:NEXAFS:scans
+	duplicateDataFolder /O=2 /Z $orig_name, $new_name
+	setdatafolder $orig_name
+	dfref orig_folder = getdatafolderDFR()
+	wave xwave_orig = $x_axis
+	wave /t columnnames
+	setdatafolder ::$new_name
+	dfref new_folder = getdatafolderDFR()
+	wave new_xwave = $x_axis
+	if(!waveexists(new_xwave))
+		print "cannot smooth without valid x wave" // likely the duplication failed?
+		setdatafolder foldersave0
+		return -1
+	endif
+	wave /t new_columnnames = columnnames
+	if(!waveexists(columnnames))
+		print "no column names found"
+		setdatafolder foldersave0
+		return -1
+	endif
+	numdeleted_channels = 0
+	for(i=0;i<numpnts(columnnames);i++)
+		wave_name = columnnames[i]
+		if(stringmatch(wave_name,x_axis))
+			continue
+		endif
+		setdatafolder orig_folder
+		wave /z ywave_orig = $wave_name
+		setdatafolder new_folder
+		wave /z new_ywave = $wave_name
+		
+		duplicate/o/free xwave_orig, tempxwave // make free copies of these which we will duplicate into the new x and y wave positions
+		duplicate/o/free ywave_orig, tempywave
+		
+		// get the evenly spaced settings for the end xwave (repeating this for each repeat)
+		min_x = round(wavemin(tempxwave))
+		max_x = round(wavemax(tempxwave))
+			
+		make /free /n=((max_x-min_x)/minstep) final_x_wave, final_y_wave // a new x and y wave with even spacing
+		setscale /i x, min_x, max_x, final_x_wave, final_y_wave
+		final_x_wave = x
+		final_y_wave = 0
+		
+		duplicate /free final_x_wave, sweep_x, sweep_y, interp_sweep
+		current_weight=0
+		
+		
+		// delete pre points
+		do
+			deletePoints 0,1,tempxwave, tempywave
+		while(tempxwave[1]<tempxwave[0])
+		deletePoints 0,5,tempxwave, tempywave // also delete the first 5 points - often lots of bad points here.
+		do
+			deletePoints 0,1,tempxwave, tempywave
+		while(tempxwave[1]<tempxwave[0])
+		duplicate/o/free tempxwave, smoothedxwave
+		
+		
+		// find the points where we change directions
+		smooth /b=5 101, smoothedxwave
+		differentiate smoothedxwave
+		make /n=0 /free findlevelsw
+		findLevels /q/P/dest=findlevelsw smoothedxwave, 0
+		if(v_flag<1)
+			make /n=0 /o /free findlevelsw
+		endif
+		make /free/o /n=(numpnts(findlevelsw)+1) startpoints, endpoints // the point positions of the start and end of each sweep
+		
+		// Split out each sweep
+		startpoints = p>0 ? findlevelsw[p-1] : 0
+		endpoints= p<numpnts(findlevelsw) ? findlevelsw[p] : numpnts(tempxwave)
+		
+		for(j=0;j<numpnts(startpoints);j++) // for each sweep
+			make /o/free/n=(endpoints[j]-startpoints[j]) xwavepart, ywavepart // make the individual wave for this sweep
+			xwavepart = tempxwave[p+startpoints[j]] // assign the points from the working x and y waves
+			ywavepart = tempywave[p+startpoints[j]]
+			sort xwavepart, xwavepart, ywavepart // sort the points by the x positions
+			
+			duplicate /o/free final_x_wave, sweep_x, sweep_y, interp_sweep // these are the idealized perfectly spaced data sets
+			// go through each sweep averaging anything less than the minimum step
+			current_x = min_x + minstep
+			index_orig = 0
+			index_new = 0
+			do
+				if(xwavepart[index_orig] > current_x)
+					// there are no points between where we are and the next min, sep - move to the next one
+					current_x += minstep
+					continue
+				endif
+				findlevel /q /p /R=(index_orig) xwavepart, current_x
+				if(v_flag)
+					break
+				endif
+				sweep_y[index_new] = mean(ywavepart,index_orig,V_LevelX)
+				sweep_x[index_new] = mean(xwavepart,index_orig,V_LevelX)
+				index_new+=1
+				index_orig = ceil(V_LevelX)
+				current_x += minstep
+			while(current_x < max_x)
+			redimension /n=(index_new) sweep_x, sweep_y // although we should only have to do this once for each x wave
+			// it is effectively identical and only depends on the x values, so each y wave should have identical treatment
+			wavestats /q sweep_y
+		
+			//interpolate the y data onto a fixed x axis with min step
+			if(V_numNans + V_numINFs < index_new-10)
+				interpolate2 /f=(interpf) /i=3 /t=3 /s=(interps) /y=interp_sweep sweep_x, sweep_y
+				
+				
+				//average the sweeps with optional different weightings from forward (odd) and reverse (even) sweeps
+				if(j/2 == round(j/2))
+					final_y_wave = (final_y_wave * current_weight + interp_sweep * 1)/ (current_weight + 1)
+					current_weight += 1
+				else
+					final_y_wave = (final_y_wave * current_weight + interp_sweep * weightforward)/ (current_weight + weightforward)
+					current_weight += weightforward
+				endif
+			//else
+		//		killwaves new_ywave
+		//		deletepoints i-numdeleted_channels,1,new_columnnames
+		//		numdeleted_channels +=1
+		// I think this is causing problems, deleteing the wrong columns
+			endif
+		endfor
+		// at this point the final_y_wave and final_x_wave should be good.
+		duplicate /o final_y_wave, new_ywave
+		duplicate /o final_x_wave, new_xwave // we will be doing this for each y wave, but it should be identical
+	endfor
+	setdatafolder root:NEXAFS:scans
+	killDataFolder /z $orig_name
+	
+	setdatafolder foldersave0
 end
