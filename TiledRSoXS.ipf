@@ -8,7 +8,7 @@ function init_tiled_rsoxs()
 	newdatafolder /o/s Packages
 	newdatafolder /o/s RSoXS_Tiled
 	get_apikey()
-	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/"
+	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/v1/"
 	string /g activeurl = "rsoxs/raw"
 	string /g output = ""
 	string /g preurl = "node/search/"
@@ -813,7 +813,8 @@ function /s get_primary([variable only_last])
 		
 	multithread outputs = fetch_string(dataurl_wave[p],30) // get the metadata, so we know what columns to grab
 	string sample_name,longimagenames="",timeoutput
-	variable unique_sample, enloc, samxloc, samyloc
+	variable unique_sample, enloc, samxloc, samyloc, samthloc, polloc, numrows
+	variable ench, polch, samxch, samych, samthch
 	for(i=0;i<itemsinlist(uids);i++)
 		output = outputs[2*i]
 		timeoutput = outputs[2*i+1]
@@ -839,20 +840,58 @@ function /s get_primary([variable only_last])
 		else
 			sample_name = "" // only one sample, so don't use any name
 		endif
-		
+		numrows = itemsinlist(output,"\n")
+		ench=0
+		polch=0
+		samxch=0
+		samych=0
+		samthch=0
 		enloc = whichlistItem("en_energy_setpoint",columns,",")
+		if(enloc>-1)
+			make /free /n=(numrows) ens = str2num(stringfromlist(enloc,stringfromlist(p,output,"\n"),","))
+			ench = wavemax(ens)-wavemin(ens)
+		endif
+		polloc = whichlistItem("en_polarization_setpoint",columns,",")
+		if(polloc>-1)
+			make /free /n=(numrows) pols = str2num(stringfromlist(polloc,stringfromlist(p,output,"\n"),","))
+			polch = wavemax(pols)-wavemin(pols)
+		endif
+		samthloc = whichlistItem("RSoXS Sample Rotation",columns,",")
+		if(samthloc>-1)
+			make /free /n=(numrows) samths = str2num(stringfromlist(samthloc,stringfromlist(p,output,"\n"),","))
+			samthch = wavemax(samths)-wavemin(samths)
+		endif
 		samxloc = whichlistItem("RSoXS Sample Outboard-Inboard",columns,",")
+		if(samxloc>-1)
+			make /free /n=(numrows) samxs = str2num(stringfromlist(samxloc,stringfromlist(p,output,"\n"),","))
+			samxch = wavemax(samxs)-wavemin(samxs)
+		endif
 		samyloc = whichlistItem("RSoXS Sample Up-Down",columns,",")
+		if(samyloc>-1)
+			make /free /n=(numrows) samys = str2num(stringfromlist(samyloc,stringfromlist(p,output,"\n"),","))
+			samych = wavemax(samys)-wavemin(samys)
+		endif
 		string rowstr
-		for(j=1;j<itemsinlist(output,"\n");j+=1)
+		for(j=1;j<numrows;j+=1)
 			rowstr = stringfromlist(j,output,"\n")
-			if(samxloc>-1 && samyloc>-1)
-				image_names +=  num2str(j-1) + " (" +num2str(str2num(stringfromlist(samxloc,rowstr,","))) + "," + num2str(str2num(stringfromlist(samyloc,rowstr,","))) + ")"+sample_name +";"
-			elseif(enloc>-1)
-				image_names += num2str(str2num(stringfromlist(enloc,rowstr,","))) + "eV"+sample_name +";"
-			else
-				image_names += num2str(j-1) +sample_name +";"
+			image_names +=  num2str(j-1)+") "
+			if(ench>0.1)
+				image_names +=  num2str(round(100*ens(j))/100)+"eV "
 			endif
+			if(polch>0.1)
+				image_names +=  "" + num2str(round(100*pols(j))/100) + "pol "
+			endif
+			if(samthch>0.1)
+				image_names +=  num2str(round(100*samths(j))/100)+"deg "
+			else
+				if(samxch>0.1)
+					image_names +=  num2str(round(100*samxs(j))/100)+"x "
+				endif
+				if(samych>0.1)
+					image_names +=  num2str(round(100*samys(j))/100)+"y "
+				endif
+			endif
+			image_names += sample_name +";"
 		endfor
 		if(itemsinlist(image_names)>itemsinlist(longimagenames))
 			longimagenames = image_names
@@ -2581,7 +2620,7 @@ function subtract_darks()
 			endif
 			k = numberByKey("layer",note(dataw))
 			k = numtype(k)==2 ? 0 : k
-			dataw -= darkw[p][q][darkpnt[min(k+r,numpnts(darkpnt)-1)]]
+			dataw -= darkw[p][q][max(0,darkpnt[min(k+r,numpnts(darkpnt)-1)])]
 			dataw +=100
 		endfor
 		variable /g dark_subtracted = 1
@@ -3589,7 +3628,7 @@ function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, we
 	string orig_name
 	string new_name
 	variable interps, interpf, minstep, weightforward
-	interps=  paramisdefault(interps) ? 1e-12 : interps // the s input to the interpolate2 function
+	interps=  paramisdefault(interps) ? 1e-13 : interps // the s input to the interpolate2 function
 	interpf=  paramisdefault(interpf) ? 6 : interpf // the f input to the interpolate2 function
 	minstep=  paramisdefault(minstep) ? 0.01 : minstep // the minimum x axis step to enforce
 	weightforward=  paramisdefault(weightforward) ? 1 : weightforward // the weight to use for forward sweeps (backward sweeps are weight 1)
