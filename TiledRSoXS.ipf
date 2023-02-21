@@ -63,9 +63,17 @@ function update_list([variable skip_scan_update, variable only_last])
 	svar /z output = root:Packages:RSoXS_Tiled:output
 	dfref FOLDERSAVE = getdatafolderDFR()
 	setdatafolder root:Packages:RSoXS_Tiled
+	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
 	string url = get_url_search()
 	if(strlen(url)>5)
+		start_time = ticks
 		output = FetchURL(url)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n update_list;"+url+";1;" + num2str(elapsed_time)
 		//URLRequest /z/time=1 url=url, method=get
 		if(strlen(output)<500)
 			// try again - server seems to ocassionally hickup
@@ -549,6 +557,11 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 	DFREF homedf = getdataFolderDFR()
 	string /g list_of_monitor_waves = ""
 	
+	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
 	wave/z/t monitor_metadata_urls
 	wave/z/t monitor_metadata, monitor_list_wave, primary_list_wave
 	wave/z monitor_sel_list, primary_sel_list
@@ -583,8 +596,8 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 					stream_url += safe_stream_base+"/?format=application/octet-stream" + apikey
 					
 					time_url = baseurl+"array/full/"+activeurl+ "/"
-					time_url += uid+"/"+safe_stream_base+"_monitor/timestamps/"
-					time_url += safe_stream_base+"/?format=application/octet-stream" + apikey
+					time_url += uid+"/"+safe_stream_base+"_monitor/data/time"
+					time_url += "/?format=application/octet-stream" + apikey
 					list_of_urls += uid + ","+ streambase + "," + stream_url + ";"+ uid +","+ streambase +","+ time_url + ";"
 				endif
 				
@@ -608,10 +621,16 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 		if(!cmpstr(monitor_metadata_urls[0],urls[0]) &&numpnts(monitor_metadata) == numpnts(urls))
 			stream_data = monitor_metadata //open the cached monitor metadata string which was already pulled
 		else
+			start_time = ticks
 			multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],30)
+			elapsed_time = (ticks-start_time)/60
+			timings += "\n monitors 1;"+urls[0]+";" + num2str(numpnts(urls)) + ";" + num2str(elapsed_time)
 		endif
 	else
+		start_time = ticks
 		multithread /NT=(numpnts(list_of_files)) stream_data = fetch_string(urls[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n monitors 2;"+urls[0]+";" + num2str(numpnts(urls)) + ";" + num2str(elapsed_time)
 	endif
 	
 	variable len1, len2
@@ -722,6 +741,10 @@ function /s get_primary([variable only_last])
 	string /g primary_wave_names = ""
 	string /g all_primary_names_for_sel = ""
 	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
 	variable i,j
@@ -749,7 +772,7 @@ function /s get_primary([variable only_last])
 	string fieldsstring
 	variable jsonId
 
-	string dataurls = "", streamurls = ""
+	string dataurls = "", streamurls = "", filenames = ""
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
 		stream_url = baseurl+"node/search/"+activeurl+ "/"
@@ -768,13 +791,24 @@ function /s get_primary([variable only_last])
 			if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
 				outputs = primary_metadata //open the cached primary metadata string which was already pulled
 			else
+				start_time = ticks
 				multithread outputs = fetch_string(streamurl_wave[p],30)
+				elapsed_time = (ticks-start_time)/60
+				timings += "\n primary 1;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 			endif
 		else
+			
+			start_time = ticks
 			multithread outputs = fetch_string(streamurl_wave[p],30)
+			elapsed_time = (ticks-start_time)/60
+			timings += "\n primary 2;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 		endif
 	else
+	
+		start_time = ticks
 		multithread outputs = fetch_string(streamurl_wave[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n primary 3;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 	endif
 	
 	
@@ -783,7 +817,7 @@ function /s get_primary([variable only_last])
 	
 	
 	//multithread outputs = fetch_string(streamurl_wave[p],1) // get the metadata, so we know what columns to grab
-	
+	make /free /n=(itemsinlist(uids)) images
 	for(i=0;i<itemsinlist(uids);i++)
 		output = outputs[i]
 		uid = stringfromlist(i,uids)
@@ -801,124 +835,190 @@ function /s get_primary([variable only_last])
 		JSoNXOP_GetKeys /free/q/z jsonID, "data/0/attributes/metadata/descriptors/0/data_keys", tempwave
 		for(j=0;j<dimsize(tempwave,0);j++)
 			if(stringmatch(tempwave[j],"*_image"))
+				images[i] = 1
 				continue
 			endif
 			fieldsstring += "&field="+URLEncode(tempwave[j])
 		endfor
 		dataurls += baseurl+"node/full/" + activeurl + "/" + uid + "/primary/data/?field=time"+fieldsstring+"&format=text/csv" + apikey + ";"
 		dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/primary/data/time?format=text/csv" + apikey + ";"
+
+		filenames +=cleanupname(uid,1,20)+"PRIM.csv;"
+		filenames +=cleanupname(uid,1,20)+"PRIM_time.csv;"
 		JSONXOP_release jsonID
-	endfor
-	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), outputs
 		
-	multithread outputs = fetch_string(dataurl_wave[p],30) // get the metadata, so we know what columns to grab
+	endfor
+	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), file_names = stringfromlist(p,filenames), file_paths
+		
+	
+	start_time = ticks
+	//multithread outputs = fetch_string(dataurl_wave[p],30) // get the primary
+	
+
+	
+	multithread /NT=5 file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],30)
+	
+	
+	
+	elapsed_time = (ticks-start_time)/60
+	timings += "\n primary metadata;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
+	
 	string sample_name,longimagenames="",timeoutput
 	variable unique_sample, enloc, samxloc, samyloc, samthloc, polloc, numrows
 	variable ench, polch, samxch, samych, samthch
 	for(i=0;i<itemsinlist(uids);i++)
-		output = outputs[2*i]
-		timeoutput = outputs[2*i+1]
+		//output = outputs[2*i]
+		//timeoutput = outputs[2*i+1]
 		uid = stringfromlist(i,uids)
-		variable num = itemsinlist(output,"\n")-1 // subtract the line for headers
-		if(num<1)
-			continue
-		endif
+		
 		setdatafolder homedf
 		newdatafolder /o/s $cleanupname(uid,0)
-		string /g primary_names = ""
+		killwaves /z time0
+		
+		LoadWave/q/O/J/D/A=time/K=0/W file_paths[2*i+1]
+		deletefile/z  file_paths[2*i+1]
+		wave /z timewave = $(stringfromlist(0,S_waveNames))
+		LoadWave/q/O/J/D/A/K=0/W file_paths[2*i]
+		deletefile/z  file_paths[2*i+1]
+	
+	
+		wave /z datawave = $(stringfromlist(0,S_waveNames))
+		if(!waveexists(datawave))
+			setdatafolder homedf
+			continue
+		endif
+//		scanlist[scanrow][1] = num2str(dimsize(datawave,0))
+//		wave /t channellist = root:Packages:NikaNISTRSoXS:channellist
+//		wave channellistsel = root:Packages:NikaNISTRSoXS:channellistsel
+//		redimension /n=(itemsinlist(s_wavenames),2) channellist, channellistsel
+//		channellist[][1] = stringfromlist(p,s_wavenames)
+//		channellist[][0] = ""
+//		channellistsel[][0] = 32
+		
+		
+		
+		
+//		variable num = itemsinlist(output,"\n")-1 // subtract the line for headers
+//		if(num<1)
+//			continue
+//		endif
+		string /g primary_names = ""//S_waveNames
+		
+		primary_wave_names += getwavesdataFolder(timewave,2)+";"
+		primary_names += "time="+ getwavesdataFolder(timewave,2)+";"
+		
+		for(j=0;j<itemsinlist(s_wavenames);j+=1)
+			wave datawave = $stringfromlist(j,s_wavenames)
+			
+			primary_wave_names += getwavesdataFolder(datawave,2)+";"
+			primary_names += removeending(stringfromlist(j,s_wavenames),"0") +"="+ getwavesdataFolder(datawave,2)+";"
+		
+		endfor
+		
 		string /g image_names = ""
 		string columns = stringfromlist(0,output,"\n")
 		string dataname
-		sample_name = stringfromlist(i,list_of_sample_names)
-		unique_sample = whichlistitem(sample_name,list_of_sample_names) == i // true if this is the first element with sample_name
-		unique_sample *= whichlistitem(sample_name,list_of_sample_names,";",i+1) == -1 // true if this is the last element with sample_name
 		
-		if(unique_sample && itemsinlist(uids)>1)
-			sample_name = " - " + stringfromlist(i,list_of_sample_names)+" - " // multiple unique samples, start with the sample name
-		elseif(itemsinlist(uids)>1)
-			sample_name = " - " + stringfromlist(i,list_of_scan_ids)  // multiple non-uniqud samples, use the scan_id
-		else
-			sample_name = "" // only one sample, so don't use any name
-		endif
-		numrows = itemsinlist(output,"\n")
-		ench=0
-		polch=0
-		samxch=0
-		samych=0
-		samthch=0
-		enloc = whichlistItem("en_energy_setpoint",columns,",")
-		if(enloc>-1)
-			make /free /n=(numrows) ens = str2num(stringfromlist(enloc,stringfromlist(p,output,"\n"),","))
-			ench = wavemax(ens)-wavemin(ens)
-		endif
-		polloc = whichlistItem("en_polarization_setpoint",columns,",")
-		if(polloc>-1)
-			make /free /n=(numrows) pols = str2num(stringfromlist(polloc,stringfromlist(p,output,"\n"),","))
-			polch = wavemax(pols)-wavemin(pols)
-		endif
-		samthloc = whichlistItem("RSoXS Sample Rotation",columns,",")
-		if(samthloc>-1)
-			make /free /n=(numrows) samths = str2num(stringfromlist(samthloc,stringfromlist(p,output,"\n"),","))
-			samthch = wavemax(samths)-wavemin(samths)
-		endif
-		samxloc = whichlistItem("RSoXS Sample Outboard-Inboard",columns,",")
-		if(samxloc>-1)
-			make /free /n=(numrows) samxs = str2num(stringfromlist(samxloc,stringfromlist(p,output,"\n"),","))
-			samxch = wavemax(samxs)-wavemin(samxs)
-		endif
-		samyloc = whichlistItem("RSoXS Sample Up-Down",columns,",")
-		if(samyloc>-1)
-			make /free /n=(numrows) samys = str2num(stringfromlist(samyloc,stringfromlist(p,output,"\n"),","))
-			samych = wavemax(samys)-wavemin(samys)
-		endif
-		string rowstr
-		for(j=1;j<numrows;j+=1)
-			rowstr = stringfromlist(j,output,"\n")
-			image_names +=  num2str(j-1)+") "
-			if(ench>0.1)
-				image_names +=  num2str(round(100*ens(j))/100)+"eV "
-			endif
-			if(polch>0.1)
-				image_names +=  "" + num2str(round(100*pols(j))/100) + "pol "
-			endif
-			if(samthch>0.1)
-				image_names +=  num2str(round(100*samths(j))/100)+"deg "
+		
+		
+		if(images[i])
+		
+			sample_name = stringfromlist(i,list_of_sample_names)
+			unique_sample = whichlistitem(sample_name,list_of_sample_names) == i // true if this is the first element with sample_name
+			unique_sample *= whichlistitem(sample_name,list_of_sample_names,";",i+1) == -1 // true if this is the last element with sample_name
+			
+			if(unique_sample && itemsinlist(uids)>1)
+				sample_name = " - " + stringfromlist(i,list_of_sample_names)+" - " // multiple unique samples, start with the sample name
+			elseif(itemsinlist(uids)>1)
+				sample_name = " - " + stringfromlist(i,list_of_scan_ids)  // multiple non-uniqud samples, use the scan_id
 			else
-				if(samxch>0.1)
-					image_names +=  num2str(round(100*samxs(j))/100)+"x "
-				endif
-				if(samych>0.1)
-					image_names +=  num2str(round(100*samys(j))/100)+"y "
-				endif
+				sample_name = "" // only one sample, so don't use any name
 			endif
-			image_names += sample_name +";"
-		endfor
-		if(itemsinlist(image_names)>itemsinlist(longimagenames))
-			longimagenames = image_names
+			// check the range of the possible axis names (only needed for IMAGES)
+			numrows = numpnts(datawave)
+			ench=0
+			polch=0
+			samxch=0
+			samych=0
+			samthch=0
+			wave /z en_energy_setpoint
+			if(waveexists(en_energy_setpoint))
+				ench = wavemax(en_energy_setpoint)-wavemin(en_energy_setpoint)
+			endif
+			wave /z en_polarization_setpoint
+			if(waveexists(en_polarization_setpoint))
+				polch = wavemax(en_polarization_setpoint)-wavemin(en_polarization_setpoint)
+			endif
+			wave /z RSoXS_Sample_Rotation
+			if(waveexists(RSoXS_Sample_Rotation))
+				samthch = wavemax(RSoXS_Sample_Rotation)-wavemin(RSoXS_Sample_Rotation)
+			endif
+			wave /z RSoXS_Sample_Outboard_Inboard
+			if(waveexists(RSoXS_Sample_Outboard_Inboard))
+				samxch = wavemax(RSoXS_Sample_Outboard_Inboard)-wavemin(RSoXS_Sample_Outboard_Inboard)
+			endif
+			wave /z RSoXS_Sample_Up_Down
+			if(waveexists(RSoXS_Sample_Up_Down))
+				samych = wavemax(RSoXS_Sample_Up_Down)-wavemin(RSoXS_Sample_Up_Down)
+			endif
+			
+			// make image names for each primary step - ONLY if images
+			string rowstr
+			for(j=1;j<numrows;j+=1)
+				rowstr = stringfromlist(j,output,"\n")
+				image_names +=  num2str(j-1)+") "
+				if(ench>0.1)
+					image_names +=  num2str(round(100*en_energy_setpoint(j))/100)+"eV "
+				endif
+				if(polch>0.1)
+					image_names +=  "" + num2str(round(100*en_polarization_setpoint(j))/100) + "pol "
+				endif
+				if(samthch>0.1)
+					image_names +=  num2str(round(100*RSoXS_Sample_Rotation(j))/100)+"deg "
+				else
+					if(samxch>0.1)
+						image_names +=  num2str(round(100*RSoXS_Sample_Outboard_Inboard(j))/100)+"x "
+					endif
+					if(samych>0.1)
+						image_names +=  num2str(round(100*RSoXS_Sample_Up_Down(j))/100)+"y "
+					endif
+				endif
+				image_names += sample_name +";"
+			endfor
+			if(itemsinlist(image_names)>itemsinlist(longimagenames))
+				longimagenames = image_names
+			endif
 		endif
-		for(j=0;j<itemsinlist(stringfromlist(0,output,"\n"),",");j++)
-			dataname = CreateDataObjectName(:,stringfromlist(j,stringfromlist(0,output,"\n"),","),1,0,1+2+4)
-			if(numtype(str2num(stringfromlist(j,stringfromlist(1,output,"\n"),",")))==2) // text data
-				make /n=(num) /o /t $dataname
-				wave /t primarywave = $dataname
-				primarywave = stringfromlist(j,stringfromlist(p+1,output,"\n"),",")
-				primary_wave_names += getwavesdataFolder(primarywave,2)+";"
-				primary_names += getwavesdataFolder(primarywave,2)+";"
-			else // numeric data
-				make /n=(num)/d /o $dataname
-				wave primarywaven = $dataname
-				primarywaven = str2num(stringfromlist(j,stringfromlist(p+1,output,"\n"),","))
-				primary_wave_names += getwavesdataFolder(primarywaven,2)+";"
-				primary_names += removeending(dataname,"0") +"="+ getwavesdataFolder(primarywaven,2)+";"
-			endif
-		endfor
-		dataname = "time0"
-		make /n=(num)/d /o $dataname
-		wave primarywaven = $dataname
-		primarywaven = str2num(stringfromlist(p,timeoutput,"\n"))
-		primary_wave_names += getwavesdataFolder(primarywaven,2)+";"
-		primary_names += removeending(dataname,"0") +"="+ getwavesdataFolder(primarywaven,2)+";"
 		
+		// this for loop can take a LONG time... needs to be made faster!
+//		variable num_cols = itemsinlist(stringfromlist(0,output,"\n"),",")
+//		make /free/n=( num,num_cols) /t big_table
+//		big_table = stringfromlist(q,stringfromlist(p,output,"\n"),",")
+//		for(j=0;j<num_cols;j++)
+//			dataname = CreateDataObjectName(:,stringfromlist(j,stringfromlist(0,output,"\n"),","),1,0,1+2+4)
+//			if(numtype(str2num(stringfromlist(j,stringfromlist(1,output,"\n"),",")))==2) // text data
+//				make /n=(num) /o /t $dataname
+//				wave /t primarywave = $dataname
+//				primarywave = big_table[p][j]
+////				primarywave = stringfromlist(j,stringfromlist(p+1,output,"\n"),",")
+//				primary_wave_names += getwavesdataFolder(primarywave,2)+";"
+//				primary_names += getwavesdataFolder(primarywave,2)+";"
+//			else // numeric data
+//				make /n=(num)/d /o $dataname
+//				wave primarywaven = $dataname
+//				primarywaven = str2num(big_table[p][j])
+////				primarywaven = str2num(stringfromlist(j,stringfromlist(p+1,output,"\n"),","))
+//				primary_wave_names += getwavesdataFolder(primarywaven,2)+";"
+//				primary_names += removeending(dataname,"0") +"="+ getwavesdataFolder(primarywaven,2)+";"
+//			endif
+//		endfor
+//		dataname = "time0"
+//		make /n=(num)/d /o $dataname
+//		wave primarywaven = $dataname
+//		primarywaven = str2num(stringfromlist(p,timeoutput,"\n"))
+//		primary_wave_names += getwavesdataFolder(primarywaven,2)+";"
+//		primary_names += removeending(dataname,"0") +"="+ getwavesdataFolder(primarywaven,2)+";"
+//		
 		all_primary_names_for_sel += primary_names
 	endfor
 	setdatafolder homedf
@@ -957,6 +1057,11 @@ function /s get_darks([variable only_last])
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
 	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
+	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
 	variable i,j
@@ -993,10 +1098,18 @@ function /s get_darks([variable only_last])
 		if(!cmpstr(dark_metadata_urls[0],streamurl_wave[0]) &&numpnts(dark_metadata) == numpnts(streamurl_wave))
 			outputs = dark_metadata //open the cached primary metadata string which was already pulled
 		else
+			
+			start_time = ticks
 			multithread outputs = fetch_string(streamurl_wave[p],30)
+			elapsed_time = (ticks-start_time)/60
+			timings += "\n darks 1;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 		endif
 	else
+		
+		start_time = ticks
 		multithread outputs = fetch_string(streamurl_wave[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n darks 2;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 	endif
 	
 	
@@ -1036,7 +1149,12 @@ function /s get_darks([variable only_last])
 	endfor
 	make /n=(itemsinlist(dataurls)) /t /free /o dataurl_wave = stringfromlist(p,dataurls), outputs
 		
+	
+	start_time = ticks
 	multithread outputs = fetch_string(dataurl_wave[p],30) // get the metadata, so we know what columns to grab
+	elapsed_time = (ticks-start_time)/60
+	timings += "\n darks 3;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
+	
 	string timeoutput
 	for(i=0;i<itemsinlist(uids);i++)
 		output = outputs[2*i]
@@ -1084,6 +1202,10 @@ function /wave get_baseline_metadataurls()
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
 	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
 	variable i,j
@@ -1117,6 +1239,10 @@ function /wave get_primary_metadataurls()
 	DFREF foldersave = getdatafolderDFR()
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
+	
+	string /g timings
+	variable start_time
+	variable elapsed_time
 	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
@@ -1259,6 +1385,9 @@ function get_all_metadata()
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
 	
+	string /g timings
+	variable start_time
+	variable elapsed_time
 	
 	// baseline
 	wave /t baseline_urls_wave = get_baseline_metadataurls()
@@ -1291,7 +1420,12 @@ function get_all_metadata()
 	
 	concatenate /t/free/NP {baseline_metadata_urls, monitor_metadata_urls, dark_metadata_urls, primary_metadata_urls}, all_urls
 	make /n=(numpnts(all_urls)) /t /free server_responses
+	
+	start_time = ticks
 	multithread /nt=(numpnts(all_urls)) server_responses = fetch_string(all_urls[p],30)
+	elapsed_time = (ticks-start_time)/60
+	timings += "\n all metadata;"+all_urls[0]+";" + num2str(numpnts(all_urls)) + ";" + num2str(elapsed_time)
+	
 	baseline_metadata = server_responses[p]
 	monitor_metadata = server_responses[p+b_pts]
 	dark_metadata = server_responses[p+b_pts+m_pts]
@@ -1318,6 +1452,10 @@ function /s get_baseline()
 	DFREF foldersave = getdatafolderDFR()
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
+	
+	string /g timings
+	variable start_time
+	variable elapsed_time
 	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave
@@ -1350,13 +1488,22 @@ function /s get_baseline()
 			if(!cmpstr(baseline_metadata_urls[0],dataurl_wave[0]) &&numpnts(baseline_metadata) == numpnts(dataurl_wave))
 				outputs = baseline_metadata //open the cached primary metadata string which was already pulled
 			else
+				start_time = ticks
 				multithread outputs = fetch_string(dataurl_wave[p],30)
+				elapsed_time = (ticks-start_time)/60
+				timings += "\n baseline 1;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
 			endif
 		else
+			start_time = ticks
 			multithread outputs = fetch_string(dataurl_wave[p],30)
+			elapsed_time = (ticks-start_time)/60
+			timings += "\n baseline 2;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
 		endif
 	else
+		start_time = ticks
 		multithread outputs = fetch_string(dataurl_wave[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n baseline 3;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
 	endif
 
 
@@ -1469,176 +1616,6 @@ function /s get_primary_channels()
 	return primary_channels
 end
 
-Function Tiled_to_QANT(ba) : ButtonControl
-	STRUCT WMButtonAction &ba
-
-	switch( ba.eventCode )
-		case 2: // mouse up
-			
-			//go to selected uid folders
-			
-			get_baseline()
-			svar /z activeurl = root:Packages:RSoXS_Tiled:activeurl
-			DFREF foldersave = getdatafolderDFR()
-			setdatafolder root:Packages:RSoXS_Tiled
-			DFREF homedf = getdataFolderDFR()
-			
-			wave /T Plans_list, stream_names,metadata_string
-			wave plans_sel_wave
-			variable i,j,k
-			make /wave /n=0 /o waves_to_copy
-			string uids="", scan_ids = "", sample_names = "", plan_names = "", metadata_list = "", wave_names=""
-			string list_of_urls = ""
-			string streambase, stream_url, time_url
-			for(i=0;i<dimsize(plans_sel_wave,0);i++)
-				if(plans_sel_wave[i])
-					scan_ids += plans_list[i][0]+";"
-					uids += plans_list[i][5]+";"
-					plan_names += plans_list[i][1]+";"
-					sample_names += plans_list[i][2]+";"
-					metadata_list += metadata_string[i] + ";"
-					setdatafolder homedf
-					setdatafolder $cleanupname(plans_list[i][5],0)
-					wave_names += wavelist("*",",","DIMS:1,TEXT:0") + ";"
-				endif
-			endfor
-			
-			// get the waves to copy over including all the primary waves
-			// all numeric waves with one dimension wavelist("*",";","DIMS:1,TEXT:0")
-			setdatafolder root:
-			newdatafolder /o/s NEXAFS
-			newdatafolder /O/S Scans
-			DFREF qantscansdf = getdataFolderDFR()
-			string uid,plan_name,sample_name, scan_id, wave_name_list
-			for(i=0;i<itemsinlist(uids);i++)
-				setdatafolder qantscansdf
-				sample_name = stringfromlist(i,sample_names)
-				uid = stringfromlist(i,uids)
-				wave_name_list = stringfromlist(i,wave_names)
-				scan_id = activeurl+stringfromlist(i,scan_ids)
-				newdatafolder /O/S tempscan//$cleanupname(scan_id,1) // make temporary scan folder
-				string columnlist = ""
-				for(j=0;j<itemsinlist(wave_name_list,",");j++)
-					setdatafolder homedf
-					setdatafolder $cleanupname(uid,0)
-					wave /z datawave = $stringfromlist(j,wave_name_list,",")
-					if(waveexists(datawave))
-						setdatafolder qantscansdf
-						setdatafolder tempscan
-						duplicate /o datawave, $stringfromlist(j,wave_name_list,",")
-						columnlist += stringfromlist(j,wave_name_list,",") + ";"
-					endif
-				endfor
-				setdatafolder qantscansdf
-				setdatafolder tempscan
-				make /o /t /n=(itemsinlist(columnlist)) columnnames = stringfromlist(p,columnlist)
-				setdatafolder homedf
-				setdatafolder $cleanupname(uid,0)
-				wave /t baseline
-				setdatafolder qantscansdf
-				setdatafolder tempscan
-				duplicate /t/o baseline, ExtraPVs
-				
-				string /g metadata = stringfromlist(i,metadata_list)
-				string /g samplename = sample_name
-				string /g filename = stringfromlist(i,uids)
-				string /g filesize = "NA"
-				string /g cdate  = stringbykey("time",metadata)
-				string /g mdate  = stringbykey("time",metadata)
-				
-
-			
-				string /g notes = stringbykey("notes", metadata) + stringbykey("sample_name", metadata)
-				string /g otherstr = stringbykey("dim1", metadata)
-				string /g EnOffsetstr = ""
-				string /g SampleSet = stringbykey("sample_set", metadata)
-				string /g refscan = "Default"
-				string /g darkscan = "Default"
-				string /g enoffset = "Default"
-				
-				wave /z timew
-				if(waveexists(timew))
-					string /g acqtime = num2str(timew[0]) 
-				else
-					string /g acqtime = cdate
-				endif
-				findvalue /text="time" ExtraPvs
-				string /g acqtime = ExtraPVs[v_value][1]
-				findvalue /text="RSoXS Sample Rotation" ExtraPVs
-				string /g anglestr
-				if(strlen(anglestr)*0!=0)
-					anglestr = ExtraPVs[v_value][1]
-				endif
-				
-				
-				variable xloc=nan, yloc=nan, zloc=nan, r1loc=nan, r2loc=nan
-				
-				findvalue /text="RSoXS Sample Outboard-Inboard" ExtraPVs
-				if(v_value >=0)
-					xloc=str2num(ExtraPVs[v_value][2])
-				endif
-				findvalue /text="RSoXS Sample Up-Down" ExtraPVs
-				if(v_value >=0)
-					yloc=str2num(ExtraPVs[v_value][2])
-				endif
-				findvalue /text="RSoXS Sample Downstream-Upstream" ExtraPVs
-				if(v_value >=0)
-					zloc=str2num(ExtraPVs[v_value][2])
-				endif
-				findvalue /text="RSoXS Sample Rotation" ExtraPVs
-				if(v_value >=0)
-					R1loc=90-str2num(ExtraPVs[v_value][2])
-					anglestr =  num2str(90-str2num(ExtraPVs[v_value][2]))
-				endif
-				
-				//findvalue /text="en_monoen_cff" ExtraPVs
-				findvalue /text="en_polarization" ExtraPVs
-			
-				if(v_value >=0)
-					otherstr=ExtraPVs[v_value][2]
-				endif
-				//findvalue /text="en_monoen_cff" ExtraPVs
-				//findvalue /text="en_sample_polarization" ExtraPVs
-			//
-			//	if(v_value >=0)
-			//		otherstr=ExtraPVs[v_value][2]
-			//	endif
-				
-				if(xloc*yloc*zloc*r1loc*0==0)
-					notes += "( X="+num2str(xloc)+", Y="+num2str(yloc)+", Z="+num2str(zloc)+", R1="+num2str(r1loc)+")"
-				endif
-				
-				duplicate /o ExtraPVs, extrainfo
-				wave /t columnnames
-			
-				wave /z datawave = $(columnnames[0])
-				if(!waveexists(datawave))
-					setdatafolder root:NEXAFS:scans
-					killdatafolder /z tempscan
-					setdatafolder foldersave
-					continue
-				endif
-				if(numpnts(datawave) <5)
-					setdatafolder root:NEXAFS:scans
-					killdatafolder /z tempscan
-					setdatafolder foldersave
-					continue
-				endif
-				setdatafolder foldersave
-				
-				//cleanup scan and duplicate into final folder
-				cleanup_output_NEXAFS("tempscan",cleanupname(scan_id,1))
-				
-				print "Loaded NEXAFS file : " + cleanupname(scan_id,1)
-			endfor
-			setdatafolder foldersave
-			break
-		case -1: // control being killed
-			break
-	endswitch
-
-	return 0
-End
 
 
 
@@ -2035,6 +2012,12 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	DFREF foldersave = getdatafolderDFR()
 	setdatafolder root:Packages:RSoXS_Tiled
 	DFREF homedf = getdataFolderDFR()
+	
+	
+	string /g timings
+	variable start_time
+	variable elapsed_time
+	
 	string /g image_wave_list // store the loaded image wave names here, for easy plotting etc.
 	wave /z image_sel_list
 	string list_of_imnums = ""
@@ -2090,10 +2073,16 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 		if(!cmpstr(primary_metadata_urls[0],streamurl_wave[0]) &&numpnts(primary_metadata) == numpnts(streamurl_wave))
 			outputs = primary_metadata //open the cached primary metadata string which was already pulled
 		else
+			start_time = ticks
 			multithread outputs = fetch_string(streamurl_wave[p],30)
+			elapsed_time = (ticks-start_time)/60
+			timings += "\n images 1;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 		endif
 	else
+		start_time = ticks
 		multithread outputs = fetch_string(streamurl_wave[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n images 2;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
 	endif
 
 	
@@ -2219,7 +2208,10 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	endfor
 	if(numpnts(file_paths)>0)
 		//multithread /NT=5 file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],20)
-		file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],30)
+		start_time = ticks
+		multithread /NT=5 file_paths = fetch_file(dataurl_wave[p], "tempfolder",file_names[p],30)
+		elapsed_time = (ticks-start_time)/60
+		timings += "\n data images;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
 	endif
 
 	
@@ -2975,15 +2967,15 @@ function /wave splitsignal(wavein, times, rises, falls, goodpulse)
 	pntlower1 = binarysearch(timesin,times[p]-1.5)
 	insertpoints /v=0 0,1,pntlower
 	make /free temprises, tempfalls
-	waveout = median(datain,pntlower1[p]+10,pntupper[p]-0)
-	stdwave = sqrt(variance(datain,pntlower1[p]+2,pntupper[p]-0))
+	waveout = median(datain,pntlower1[p]+0,pntupper[p]-0)
+	stdwave = sqrt(variance(datain,pntlower1[p]+0,pntupper[p]-0))
 	variable i, meanvalue, alreadygood, err
 	for(i=0;i<dimsize(times,0);i+=1)
-		if(pntupper[i] - pntlower[i] < 3)
+		if(pntupper[i] - pntlower[i] < 1)
 			continue
 		endif
 		//meanvalue = mean(datain,pntlower[i],pntupper[i])
-		meanvalue = (6/10) *(wavemin(datain,pntlower[i],pntupper[i]) + wavemax(datain,pntlower[i],pntupper[i]))
+		meanvalue = (4/10) *(wavemin(datain,pntlower[i],pntupper[i]) + wavemax(datain,pntlower[i],pntupper[i]))
 		try
 			findlevels /B=3/EDGE=1 /Q /P /D=temprises /R=[max(0,pntlower[i]),min(numpnts(datain)-1,pntupper[i])] datain, meanvalue;AbortonRTE // look for rising and falling edges
 			findlevels /B=3/EDGE=2 /Q /P /D=tempfalls /R=[max(0,pntlower[i]),min(numpnts(datain)-1,pntupper[i])] datain, meanvalue;AbortonRTE
@@ -3628,8 +3620,8 @@ function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, we
 	string orig_name
 	string new_name
 	variable interps, interpf, minstep, weightforward
-	interps=  paramisdefault(interps) ? 1e-13 : interps // the s input to the interpolate2 function
-	interpf=  paramisdefault(interpf) ? 6 : interpf // the f input to the interpolate2 function
+	interps=  paramisdefault(interps) ? 0 : interps // the s input to the interpolate2 function
+	interpf=  paramisdefault(interpf) ? 0 : interpf // the f input to the interpolate2 function
 	minstep=  paramisdefault(minstep) ? 0.01 : minstep // the minimum x axis step to enforce
 	weightforward=  paramisdefault(weightforward) ? 1 : weightforward // the weight to use for forward sweeps (backward sweeps are weight 1)
 	
@@ -3754,9 +3746,11 @@ function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, we
 		
 			//interpolate the y data onto a fixed x axis with min step
 			if(V_numNans + V_numINFs < index_new-10)
-				interpolate2 /f=(interpf) /i=3 /t=3 /s=(interps) /y=interp_sweep sweep_x, sweep_y
-				
-				
+				//interpolate2 /i=3 /t=2 /y=interp_sweep sweep_x, sweep_y
+				interp_sweep = interp(final_x_wave[p], sweep_x, sweep_y )
+				if(abs(wavemax(sweep_x)-wavemax(final_x_wave)) + abs(wavemin(sweep_x)-wavemin(final_x_wave))>1)
+					continue // this sweep didn't finish so don't add it in.
+				endif
 				//average the sweeps with optional different weightings from forward (odd) and reverse (even) sweeps
 				if(j/2 == round(j/2))
 					final_y_wave = (final_y_wave * current_weight + interp_sweep * 1)/ (current_weight + 1)
@@ -3781,3 +3775,174 @@ function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, we
 	
 	setdatafolder foldersave0
 end
+
+Function Tiled_to_QANT(ba) : ButtonControl
+	STRUCT WMButtonAction &ba
+
+	switch( ba.eventCode )
+		case 2: // mouse up
+			
+			//go to selected uid folders
+			
+			get_baseline()
+			svar /z activeurl = root:Packages:RSoXS_Tiled:activeurl
+			DFREF foldersave = getdatafolderDFR()
+			setdatafolder root:Packages:RSoXS_Tiled
+			DFREF homedf = getdataFolderDFR()
+			
+			wave /T Plans_list, stream_names,metadata_string
+			wave plans_sel_wave
+			variable i,j,k
+			make /wave /n=0 /o waves_to_copy
+			string uids="", scan_ids = "", sample_names = "", plan_names = "", metadata_list = "", wave_names=""
+			string list_of_urls = ""
+			string streambase, stream_url, time_url
+			for(i=0;i<dimsize(plans_sel_wave,0);i++)
+				if(plans_sel_wave[i])
+					scan_ids += plans_list[i][0]+";"
+					uids += plans_list[i][5]+";"
+					plan_names += plans_list[i][1]+";"
+					sample_names += plans_list[i][2]+";"
+					metadata_list += metadata_string[i] + ";"
+					setdatafolder homedf
+					setdatafolder $cleanupname(plans_list[i][5],0)
+					wave_names += wavelist("*",",","DIMS:1,TEXT:0") + ";"
+				endif
+			endfor
+			
+			// get the waves to copy over including all the primary waves
+			// all numeric waves with one dimension wavelist("*",";","DIMS:1,TEXT:0")
+			setdatafolder root:
+			newdatafolder /o/s NEXAFS
+			newdatafolder /O/S Scans
+			DFREF qantscansdf = getdataFolderDFR()
+			string uid,plan_name,sample_name, scan_id, wave_name_list
+			for(i=0;i<itemsinlist(uids);i++)
+				setdatafolder qantscansdf
+				sample_name = stringfromlist(i,sample_names)
+				uid = stringfromlist(i,uids)
+				wave_name_list = stringfromlist(i,wave_names)
+				scan_id = activeurl+stringfromlist(i,scan_ids)
+				newdatafolder /O/S tempscan//$cleanupname(scan_id,1) // make temporary scan folder
+				string columnlist = ""
+				for(j=0;j<itemsinlist(wave_name_list,",");j++)
+					setdatafolder homedf
+					setdatafolder $cleanupname(uid,0)
+					wave /z datawave = $stringfromlist(j,wave_name_list,",")
+					if(waveexists(datawave))
+						setdatafolder qantscansdf
+						setdatafolder tempscan
+						duplicate /o datawave, $stringfromlist(j,wave_name_list,",")
+						columnlist += stringfromlist(j,wave_name_list,",") + ";"
+					endif
+				endfor
+				setdatafolder qantscansdf
+				setdatafolder tempscan
+				make /o /t /n=(itemsinlist(columnlist)) columnnames = stringfromlist(p,columnlist)
+				setdatafolder homedf
+				setdatafolder $cleanupname(uid,0)
+				wave /t baseline
+				setdatafolder qantscansdf
+				setdatafolder tempscan
+				duplicate /t/o baseline, ExtraPVs
+				
+				string /g metadata = stringfromlist(i,metadata_list)
+				string /g samplename = sample_name
+				string /g filename = stringfromlist(i,uids)
+				string /g filesize = "NA"
+				string /g cdate  = stringbykey("time",metadata)
+				string /g mdate  = stringbykey("time",metadata)
+				
+
+			
+				string /g notes = stringbykey("notes", metadata) + stringbykey("sample_name", metadata)
+				string /g otherstr = stringbykey("dim1", metadata)
+				string /g EnOffsetstr = ""
+				string /g SampleSet = stringbykey("sample_set", metadata)
+				string /g refscan = "Default"
+				string /g darkscan = "Default"
+				string /g enoffset = "Default"
+				
+				wave /z timew
+				if(waveexists(timew))
+					string /g acqtime = num2str(timew[0]) 
+				else
+					string /g acqtime = cdate
+				endif
+				findvalue /text="time" ExtraPvs
+				string /g acqtime = ExtraPVs[v_value][1]
+				findvalue /text="RSoXS Sample Rotation" ExtraPVs
+				string /g anglestr
+				if(strlen(anglestr)*0!=0)
+					anglestr = ExtraPVs[v_value][1]
+				endif
+				
+				
+				variable xloc=nan, yloc=nan, zloc=nan, r1loc=nan, r2loc=nan
+				
+				findvalue /text="RSoXS Sample Outboard-Inboard" ExtraPVs
+				if(v_value >=0)
+					xloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Up-Down" ExtraPVs
+				if(v_value >=0)
+					yloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Downstream-Upstream" ExtraPVs
+				if(v_value >=0)
+					zloc=str2num(ExtraPVs[v_value][2])
+				endif
+				findvalue /text="RSoXS Sample Rotation" ExtraPVs
+				if(v_value >=0)
+					R1loc=90-str2num(ExtraPVs[v_value][2])
+					anglestr =  num2str(90-str2num(ExtraPVs[v_value][2]))
+				endif
+				
+				//findvalue /text="en_monoen_cff" ExtraPVs
+				findvalue /text="en_polarization" ExtraPVs
+			
+				if(v_value >=0)
+					otherstr=ExtraPVs[v_value][2]
+				endif
+				//findvalue /text="en_monoen_cff" ExtraPVs
+				//findvalue /text="en_sample_polarization" ExtraPVs
+			//
+			//	if(v_value >=0)
+			//		otherstr=ExtraPVs[v_value][2]
+			//	endif
+				
+				if(xloc*yloc*zloc*r1loc*0==0)
+					notes += "( X="+num2str(xloc)+", Y="+num2str(yloc)+", Z="+num2str(zloc)+", R1="+num2str(r1loc)+")"
+				endif
+				
+				duplicate /o ExtraPVs, extrainfo
+				wave /t columnnames
+			
+				wave /z datawave = $(columnnames[0])
+				if(!waveexists(datawave))
+					setdatafolder root:NEXAFS:scans
+					killdatafolder /z tempscan
+					setdatafolder foldersave
+					continue
+				endif
+				if(numpnts(datawave) <5)
+					setdatafolder root:NEXAFS:scans
+					killdatafolder /z tempscan
+					setdatafolder foldersave
+					continue
+				endif
+				setdatafolder foldersave
+				
+				//cleanup scan and duplicate into final folder
+				cleanup_output_NEXAFS("tempscan",cleanupname(scan_id,1))
+				//duplicatedataFolder tempscan, $cleanupname(scan_id,1)
+				print "Loaded NEXAFS file : " + cleanupname(scan_id,1)
+			endfor
+			setdatafolder foldersave
+			break
+		case -1: // control being killed
+			break
+	endswitch
+
+	return 0
+End
