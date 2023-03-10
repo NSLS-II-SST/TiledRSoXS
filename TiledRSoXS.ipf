@@ -964,23 +964,23 @@ function /s get_primary([variable only_last])
 			
 			// make image names for each primary step - ONLY if images
 			string rowstr
-			for(j=1;j<numrows;j+=1)
+			for(j=1;j<=numrows;j+=1)
 				rowstr = stringfromlist(j,output,"\n")
 				image_names +=  num2str(j-1)+") "
 				if(ench>0.1)
-					image_names +=  num2str(round(100*en_energy_setpoint(j))/100)+"eV "
+					image_names +=  num2str(round(100*en_energy_setpoint(j-1))/100)+"eV "
 				endif
 				if(polch>0.1)
-					image_names +=  "" + num2str(round(100*en_polarization_setpoint(j))/100) + "pol "
+					image_names +=  "" + num2str(round(100*en_polarization_setpoint(j-1))/100) + "pol "
 				endif
 				if(samthch>0.1)
-					image_names +=  num2str(round(100*RSoXS_Sample_Rotation(j))/100)+"deg "
+					image_names +=  num2str(round(100*RSoXS_Sample_Rotation(j-1))/100)+"deg "
 				else
 					if(samxch>0.1)
-						image_names +=  num2str(round(100*RSoXS_Sample_Outboard_Inboard(j))/100)+"x "
+						image_names +=  num2str(round(100*RSoXS_Sample_Outboard_Inboard(j-1))/100)+"x "
 					endif
 					if(samych>0.1)
-						image_names +=  num2str(round(100*RSoXS_Sample_Up_Down(j))/100)+"y "
+						image_names +=  num2str(round(100*RSoXS_Sample_Up_Down(j-1))/100)+"y "
 					endif
 				endif
 				image_names += sample_name +";"
