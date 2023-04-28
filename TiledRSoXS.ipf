@@ -660,6 +660,11 @@ function /s get_monitors([string monitorlist,variable plot,variable only_last])
 			wave stream_wave = StringToUnsignedByteWave(rawstring)
 			wave time_wave = StringToUnsignedByteWave(rawstring2)
 			redimension /E=1 /Y=4 /n=(min(len1,len2)/8) stream_wave, time_wave
+			
+			//if(stringmatch(streambase,"*Sample Current*") || stringmatch(streambase, "*AU Mesh*"))
+			//time_wave -=0.75
+			//endif
+			
 			concatenate /o {stream_wave,time_wave}, $cleanupName(streambase,0)
 			wave stream = $cleanupName(streambase,0)
 			list_of_monitor_waves+= getwavesDataFolder(stream,2)+";"
@@ -801,7 +806,9 @@ function /s get_primary([variable only_last])
 			start_time = ticks
 			multithread outputs = fetch_string(streamurl_wave[p],30)
 			elapsed_time = (ticks-start_time)/60
-			timings += "\n primary 2;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
+			if(numpnts(streamurl_wave)>0)
+				timings += "\n primary 2;"+streamurl_wave[0]+";" + num2str(numpnts(streamurl_wave)) + ";" + num2str(elapsed_time)
+			endif
 		endif
 	else
 	
@@ -861,8 +868,9 @@ function /s get_primary([variable only_last])
 	
 	
 	elapsed_time = (ticks-start_time)/60
-	timings += "\n primary metadata;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
-	
+	if(numpnts(dataurl_wave)>0)
+		timings += "\n primary metadata;"+dataurl_wave[0]+";" + num2str(numpnts(dataurl_wave)) + ";" + num2str(elapsed_time)
+	endif
 	string sample_name,longimagenames="",timeoutput
 	variable unique_sample, enloc, samxloc, samyloc, samthloc, polloc, numrows
 	variable ench, polch, samxch, samych, samthch
@@ -1424,8 +1432,9 @@ function get_all_metadata()
 	start_time = ticks
 	multithread /nt=(numpnts(all_urls)) server_responses = fetch_string(all_urls[p],30)
 	elapsed_time = (ticks-start_time)/60
-	timings += "\n all metadata;"+all_urls[0]+";" + num2str(numpnts(all_urls)) + ";" + num2str(elapsed_time)
-	
+	if(numpnts(all_urls)>0)
+		timings += "\n all metadata;"+all_urls[0]+";" + num2str(numpnts(all_urls)) + ";" + num2str(elapsed_time)
+	endif
 	baseline_metadata = server_responses[p]
 	monitor_metadata = server_responses[p+b_pts]
 	dark_metadata = server_responses[p+b_pts+m_pts]
