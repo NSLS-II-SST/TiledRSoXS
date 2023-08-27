@@ -11,7 +11,7 @@ function init_tiled_rsoxs()
 	string /g baseurl = "https://tiled.nsls2.bnl.gov/api/v1/"
 	string /g activeurl = "rsoxs/raw"
 	string /g output = ""
-	string /g preurl = "node/search/"
+	string /g preurl = "search/"
 	string /g posturl = "?fields=metadata&page%5Boffset%5D=0&page%5Blimit%5D=100&omit_links=true"
 	variable /g offset = 0
 	variable /g max_result
@@ -780,7 +780,7 @@ function /s get_primary([variable only_last])
 	string dataurls = "", streamurls = "", filenames = ""
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
-		stream_url = baseurl+"node/search/"+activeurl+ "/"
+		stream_url = baseurl+"search/"+activeurl+ "/"
 		stream_url += uid+"/primary?field=metadata" + apikey
 		streamurls += stream_url + ";"
 	endfor
@@ -1090,7 +1090,7 @@ function /s get_darks([variable only_last])
 	endif
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
-		stream_url = baseurl+"node/search/"+activeurl+ "/"
+		stream_url = baseurl+"search/"+activeurl+ "/"
 		stream_url += uid+"/dark?field=metadata" + apikey
 		streamurls += stream_url + ";"
 	endfor
@@ -1270,7 +1270,7 @@ function /wave get_primary_metadataurls()
 	string dataurls = "", streamurls = ""
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
-		stream_url = baseurl+"node/search/"+activeurl+ "/"
+		stream_url = baseurl+"search/"+activeurl+ "/"
 		stream_url += uid+"/primary?field=metadata" + apikey
 		streamurls += stream_url + ";"
 	endfor
@@ -1375,7 +1375,7 @@ function /wave get_dark_metadataurls()
 	endif
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
-		stream_url = baseurl+"node/search/"+activeurl+ "/"
+		stream_url = baseurl+"search/"+activeurl+ "/"
 		stream_url += uid+"/dark?field=metadata" + apikey
 		streamurls += stream_url + ";"
 	endfor
@@ -2065,7 +2065,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	string dataurls = "", streamurls = "", darkurls = ""
 	for(i=0;i<itemsinlist(uids);i++)
 		uid = stringfromlist(i,uids)
-		stream_url = baseurl+"node/search/"+activeurl+ "/"
+		stream_url = baseurl+"search/"+activeurl+ "/"
 		stream_url += uid+"/primary?field=metadata" + apikey
 		streamurls += stream_url + ";"
 	endfor
@@ -2122,7 +2122,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 			if(!stringmatch(tempwave[j],"*_image"))
 				continue
 			endif
-			JSONXOP_GetValue /free /q /z /wave=shape jsonId, "data/0/attributes/structure/contents/"+tempwave[j]+"/attributes/structure/macro/shape"
+			JSONXOP_GetValue /free /q /z /wave=shape jsonId, "data/0/attributes/structure/contents/"+tempwave[j]+"/attributes/structure/shape"
 			list_of_image_nums_to_use = ""
 			if(uselist)
 				for(k=0;k<shape[0];k++)
