@@ -1994,6 +1994,23 @@ Function Catalog_search_comparison_proc(pa) : PopupMenuControl
 	return 0
 End
 
+
+function clear_cache()
+	string listoffiles = IndexedFile(tempfolder,-1,".tiff")
+	variable i, num = itemsinlist(listoffiles)
+	for(i=0;i<num;i++)
+		deletefile /P=tempfolder /z stringfromlist(i,listoffiles)
+	endfor
+	
+	listoffiles = IndexedFile(tempfolder,-1,".csv")
+	num = itemsinlist(listoffiles)
+	for(i=0;i<num;i++)
+		deletefile /P=tempfolder /z stringfromlist(i,listoffiles)
+	endfor
+
+End
+
+
 function /s get_images([string lims, variable forcedl,variable only_last])
 	only_last = paramIsDefault(only_last)? 0 : only_last
 	forcedl =  paramisdefault(forcedl)? 0 : forcedl
@@ -2041,11 +2058,8 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	else
 		uselist = 0
 	endif
-	string tmppath = getenvironmentVariable("TMP")
-	if(strlen(tmppath)<1)
-		tmppath = getenvironmentVariable("TMPDIR")
-	endif
-	newpath /o/q tempfolder, tmppath
+	string tmppath = specialDirPath("Temporary",1,0,0)+":RSoXSTiled"
+	newpath /o/q/c tempfolder, tmppath
 	
 	wave /T Plans_list, stream_names
 	wave plans_sel_wave, has_darks
