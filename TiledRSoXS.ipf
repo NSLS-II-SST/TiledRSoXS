@@ -285,7 +285,7 @@ function /s get_url_search()
 		posturl += "&" + searchlist[i]
 	endfor
 	
-	posturl += "&page%5Boffset%5D=" + num2str(offset) + "&page%5Blimit%5D="+num2str(num_page)+"&omit_links=true"
+	posturl += "&page%5Boffset%5D=" + num2str(offset,"%u") + "&page%5Blimit%5D="+num2str(num_page)+"&omit_links=true"
 	
 	if(svar_Exists(apikey) && svar_Exists(baseurl) && svar_Exists(activeurl) && svar_Exists(preurl) && svar_Exists(posturl))
 		return baseurl + preurl + activeurl + posturl + apikey
@@ -304,7 +304,7 @@ Window RSoXSTiled() : Panel
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
 	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,mode=9
 	ListBox list0,widths={37,74,147,48,26,37},userColumnResize=1
-	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,18.00},bodyWidth=43,proc=SetVarProc
+	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,18.00},bodyWidth=43,proc=SetVarProc,format="%d"
 	SetVariable requested_results_val,title=" "
 	SetVariable requested_results_val,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:offset
 	Button get_URL1,pos={143.00,241.00},size={24.00,21.00},proc=page_toend
@@ -315,7 +315,7 @@ Window RSoXSTiled() : Panel
 	Button get_URL3,title="<<"
 	Button get_URL4,pos={42.00,241.00},size={22.00,21.00},proc=page_backward
 	Button get_URL4,title="<"
-	SetVariable requested_results_val1,pos={169.00,243.00},size={43.00,18.00},bodyWidth=43
+	SetVariable requested_results_val1,pos={169.00,243.00},size={43.00,18.00},bodyWidth=43,format="%d"
 	SetVariable requested_results_val1,title=" ",labelBack=(61423,61423,61423)
 	SetVariable requested_results_val1,frame=0,valueColor=(21845,21845,21845)
 	SetVariable requested_results_val1,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:max_result,noedit=1
