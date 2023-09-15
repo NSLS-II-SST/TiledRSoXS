@@ -31,10 +31,10 @@ function init_tiled_rsoxs()
 	variable /g logimage = 1
 	variable /g min_val = 100
 	variable /g max_val = 100000
-	variable /g xmin_pct = 0
-	variable /g xmax_pct = 100
-	variable /g ymin_pct = 0
-	variable /g ymax_pct = 100
+	variable /g leftmin = nan
+	variable /g leftmax = nan
+	variable /g botmin = nan
+	variable /g botmax = nan
 	variable /g primary_plot_indv_axes
 	variable /g monitor_plot_indv_axes
 	variable /g monitor_plot_subxoffset
@@ -54,6 +54,7 @@ function init_tiled_rsoxs()
 	dowindow /k RSoXSTiled
 	Execute "RSoXSTiled()"
 	setdatafolder foldersave
+	SetWindow RSoXSTiled,hook(image_updates)=Tiled_RSoXS_window_hook
 
 end
 
@@ -2424,6 +2425,10 @@ function update_image_plots([variable plot])
 	plot = paramIsDefault(plot)? 1 : 0
 // make or update all of the images from the list of images and uids selected
 	dfref foldersave = getdatafolderdfR()
+	nvar /z leftmin = root:Packages:RSoXS_Tiled:leftmin
+	nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
+	nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
+	nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
 	setdatafolder root:Packages:RSoXS_Tiled
 	dfref homedf = getdataFolderDFR()
 	nvar min_val, max_val, logimage
@@ -2431,22 +2436,32 @@ function update_image_plots([variable plot])
 	wave /t image_plot_names
 	svar image_wave_list
 	variable i,j,imnum=0,k
+	SetWindow RSoXSTiled,hook(image_updates)=$""
 	for(i=0;i<itemsinlist(image_wave_list);i++)
 		wave image = $stringfromlist(i,image_wave_list)
 		svar image_names = $(getwavesdataFolder(image,1)+"image_names")
 		for(j=0;j<dimsize(image,2) && imnum<numpnts(image_plot_names);j++)
 			IF(PLOT|| strlen(ImageNameList("RSoXSTiled#images#"+image_plot_names[imnum],";"))==0)
+			// image isn't plotted, so plot it
 				appendimage /G=1 /w=RSoXSTiled#images#$image_plot_names[imnum] image
 			endif
+			// make the graphs look the same
 			ModifyImage /w=RSoXSTiled#images#$image_plot_names[imnum] ''#0, plane=j
 			ModifyGraph /w=RSoXSTiled#images#$image_plot_names[imnum] margin=1,nticks=0,standoff=0
+			// make the color scale the same
 			ModifyImage /w=RSoXSTiled#images#$image_plot_names[imnum] ''#0 log=logimage,ctab= {min_val,max_val,$colortab,0}
+			// make the plot limits the same
+			if(leftmin*leftmax*botmin*botmax*0==0)
+				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] left leftmin, leftmax
+				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] bottom botmin, botmax
+			endif
 			k=numberbykey("layer",note(image))
 			k=numtype(k)==2? 0 : k
 			TextBox /w=RSoXSTiled#images#$image_plot_names[imnum] /S=0/F=0/A=LT stringfromlist(k+j,image_names)
 			imnum+=1
 		endfor
 	endfor
+	SetWindow RSoXSTiled,hook(image_updates)=Tiled_RSoXS_window_hook
 end
 function update_monitor_plots()
 	DFREF foldersave = getdatafolderDFR()
@@ -2743,102 +2758,6 @@ Function COlorTab_pop_proc(pa) : PopupMenuControl
 End
 
 
-
-
-Function ScrollZoomHook(s)
-	STRUCT WMWinHookStruct &s
-	string axes_t, axisname, info, dummy
-	variable numaxes, i, j, f1, f2
-	variable relx, rely, scale, mouseLoc, cursorval, rangeinc, newmax, newmin
-
-	// bit 0:	Mouse button is down.
-	//bit 1:	Shift key is down.
-	//bit 2:	Option (Macintosh ) or Alt (Windows ) is down.
-	//bit 3:	Command (Macintosh ) or Ctrl (Windows ) is down.
-	//bit 4:	Contextual menu click: right-click or Control-click (Macintosh , or right-click (Windows ).
-	switch(s.eventCode)
-		case 3:		// Mouse down
-			if(s.eventMod & 2^4)		// right mouse button - leave this interaction as normal
-				PopupContextualMenu/C=(s.mouseLoc.h, s.mouseLoc.v)/N "ScrollZoomDisablePopup"
-			endif
-			
-			break
-		case 4: // mouse moved
-		case 5: // mouse up
-		case 22:		// Scroll wheel
-			if ((s.eventMod & 2^3) == 0)		// Temp disable if control key held down
-
-			axes_t = axislist("")
-			numaxes = itemsinlist(axes_t)
-			make/n=(numaxes)/free/o/t axes, sz_name, sz_type
-			make/n=(numaxes)/free/o sz_relpos0, sz_relpos1, sz_min, sz_max
-			
-			getwindow kwTopWin, psizeDC
-			rely = (s.mouseLoc.v - V_top) / (V_bottom - V_top)
-			rely = 1 - rely
-			relx = (s.mouseLoc.h - V_left) / (V_right - V_left)
-	
-			// Are we inside plot area?
-			if ( (relx >= 0) && (relx <=1) && (rely >= 0) && (rely <=1))
-			
-			scale = 0.03
-			scale *= s.wheelDy
-			if ((s.eventMod & 2^1) != 0)		// Shift
-				scale *= 8
-			endif
-			//if (s.wheelDy)
-			//	scale = .03
-			//	scale *= s.wheelDy
-			//else
-			//	scale = .25
-			//	scale *= s.wheelDx
-			//endif
-			
-			make/free/n=(numaxes)/t axes
-			axes = stringfromlist(p, axes_t)
-			// Get axis info and put into waves.  To do: move into sep routine.
-			for (i=0; i<numaxes; i+=1)
-				axisname = axes[i]
-				info = axisinfo("", axisname)
-				sz_name[i] = axisname
-				sz_type[i] = stringbykey("AXTYPE", info)
-				sscanf stringbykey("axisEnab(x)", info, "="), "{%f,%f}", f1, f2
-				sz_relpos0[i] = f1
-				sz_relpos1[i] = f2
-				getaxis/q $axisname
-				sz_min[i] = V_min
-				sz_max[i] = V_max
-			endfor
-
-			// Check if we're within axis bounds
-			extract/free/o/indx axes, haxes, (stringmatch(sz_type[p], "top") || stringmatch(sz_type[p], "bottom") )  && relx > sz_relpos0[p] && relx < sz_relpos1[p]
-			extract/free/indx axes, vaxes, (stringmatch(sz_type[p], "left") || stringmatch(sz_type[p], "right") )  && rely > sz_relpos0[p] && rely < sz_relpos1[p]
-			make/free/n=0 targetaxes
-			concatenate/np {haxes, vaxes}, targetaxes
-
-			pauseupdate; silent 1
-			s.doSetCursor = 1
-			s.cursorCode = 8
-			for (i=0; i<numpnts(targetaxes); i+=1)
-				j = targetaxes[i]
-				if ( stringmatch(sz_type[j], "top") || stringmatch(sz_type[j], "bottom") )
-					mouseLoc = s.mouseLoc.h
-				else
-					mouseLoc = s.mouseLoc.v
-				endif
-				axisname = axes[j]
-				cursorval = axisvalfrompixel("", axisname, mouseLoc)
-				rangeinc = (sz_max[j] - sz_min[j]) * scale
-				newmax = sz_max[j] + -rangeinc * (sz_max[j] - cursorval) / (sz_max[j] - sz_min[j])
-				newmin = sz_min[j] - -rangeinc * (cursorval - sz_min[j]) / (sz_max[j] - sz_min[j])
-				SetAxis $axes[j] newmin, newmax
-			endfor
-			
-			endif
-			endif
-			break
-	EndSwitch
-End
 
 
 Function Primary_sel_listbox_proc(lba) : ListBoxControl
@@ -3968,4 +3887,132 @@ Function Tiled_to_QANT(ba) : ButtonControl
 	endswitch
 
 	return 0
+End
+
+
+
+Function Tiled_RSoXS_window_hook(s)
+	STRUCT WMWinHookStruct &s
+	Variable hookResult = 0
+	string axes_t, axisname, info, dummy
+	variable numaxes, i, j, f1, f2
+	variable relx, rely, scale, mouseLoc, cursorval, rangeinc, newmax, newmin
+	//print s.eventCode
+	switch(s.eventCode)
+		case 4:
+			break
+		case 11:
+		case 6:
+//		case 8: // modified
+//			GetWindow $s.winName activeSW
+//			if(!stringmatch(s_value,"*Tiled_image*"))
+//				break
+//			endif
+//			nvar /z leftmin = root:Packages:TiledRSoXS:leftmin
+//			nvar /z leftmax = root:Packages:TiledRSoXS:leftmax
+//			nvar /z botmin = root:Packages:TiledRSoXS:botmin
+//			nvar /z botmax = root:Packages:TiledRSoXS:botmax
+//			GetWindow $s.winName activeSW
+//			string subwindow = s_value
+//			//print subwindow
+//			getaxis /q/w=$(subwindow) left ;variable err = GetRTError(1)
+//			if(err)
+//				break
+//			endif
+//			leftmin = v_min
+//			leftmax = v_max
+//			getaxis /q/w=$(subwindow) bottom
+//			botmin = v_min
+//			botmax = v_max
+//			update_image_plots()
+//			hookresult = 1
+//			break
+		case 22:		// Scroll wheel
+			if(!stringmatch(s.winName,"*Tiled_image*"))
+				break
+			endif
+			nvar /z leftmin = root:Packages:RSoXS_Tiled:leftmin
+			nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
+			nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
+			nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
+			axes_t = axislist(s.winName)
+			numaxes = itemsinlist(axes_t)
+			make/n=(numaxes)/free/o/t axes, sz_name, sz_type
+			make/n=(numaxes)/free/o sz_relpos0, sz_relpos1, sz_min, sz_max
+			
+			getwindow $(s.winName), psizeDC
+			rely = (s.mouseLoc.v - V_top) / (V_bottom - V_top)
+			rely = 1 - rely
+			relx = (s.mouseLoc.h - V_left) / (V_right - V_left)
+	
+			// Are we inside plot area?
+			if ( (relx < 0) || (relx >1) || (rely < 0) || (rely > 1))
+				break
+			endif
+			scale = 0.03
+			scale *= s.wheelDy
+			if ((s.eventMod & 2^1) != 0)		// Shift
+				scale *= 8
+			endif
+			
+			make/free/n=(numaxes)/t axes
+			axes = stringfromlist(p, axes_t)
+			// Get axis info and put into waves.  To do: move into sep routine.
+			for (i=0; i<numaxes; i+=1)
+				axisname = axes[i]
+				info = axisinfo(s.winName, axisname)
+				sz_name[i] = axisname
+				sz_type[i] = stringbykey("AXTYPE", info)
+				sscanf stringbykey("axisEnab(x)", info, "="), "{%f,%f}", f1, f2
+				sz_relpos0[i] = f1
+				sz_relpos1[i] = f2
+				getaxis/q /w=$(s.winName) $axisname
+				sz_min[i] = V_min
+				sz_max[i] = V_max
+			endfor
+
+			// Check if we're within axis bounds
+			extract/free/o/indx axes, haxes, (stringmatch(sz_type[p], "top") || stringmatch(sz_type[p], "bottom") )  && relx > sz_relpos0[p] && relx < sz_relpos1[p]
+			extract/free/indx axes, vaxes, (stringmatch(sz_type[p], "left") || stringmatch(sz_type[p], "right") )  && rely > sz_relpos0[p] && rely < sz_relpos1[p]
+			make/free/n=0 targetaxes
+			concatenate/np {haxes, vaxes}, targetaxes
+
+			pauseupdate; silent 1
+			s.doSetCursor = 1
+			s.cursorCode = 8
+			for (i=0; i<numpnts(targetaxes); i+=1)
+				j = targetaxes[i]
+				if ( stringmatch(sz_type[j], "top") || stringmatch(sz_type[j], "bottom") )
+					mouseLoc = s.mouseLoc.h
+				else
+					mouseLoc = s.mouseLoc.v
+				endif
+				axisname = axes[j]
+				cursorval = axisvalfrompixel(s.winName, axisname, mouseLoc)
+				rangeinc = (sz_max[j] - sz_min[j]) * scale
+				newmax = sz_max[j] + -rangeinc * (sz_max[j] - cursorval) / (sz_max[j] - sz_min[j])
+				newmin = sz_min[j] - -rangeinc * (cursorval - sz_min[j]) / (sz_max[j] - sz_min[j])
+				//SetAxis /w=$(s.winName) $axes[j] newmin, newmax
+				
+				if ( stringmatch(sz_type[j], "top") || stringmatch(sz_type[j], "bottom") )
+					botmin = newmin
+					botmax = newmax
+				else
+					leftmin = newmin
+					leftmax = newmax
+				endif
+				
+			endfor
+			update_image_plots(plot=0)
+			hookResult = 1
+			break
+		case 2:
+			NVAR running= root:Packages:NikaNISTRSoXS:bkgrunning
+			running = 0
+			CtrlNamedBackground NRB_BG, stop
+			break
+		default:
+			//print s.eventcode	
+	endswitch
+	return hookResult // 0 if nothing done, else 1
 End
