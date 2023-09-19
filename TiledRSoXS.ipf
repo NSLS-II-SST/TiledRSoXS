@@ -35,6 +35,7 @@ function init_tiled_rsoxs()
 	variable /g leftmax = nan
 	variable /g botmin = nan
 	variable /g botmax = nan
+	variable /g clicked_ticks = nan
 	variable /g primary_plot_indv_axes
 	variable /g monitor_plot_indv_axes
 	variable /g monitor_plot_subxoffset
@@ -2111,7 +2112,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 
 	
 	
-	string filenames = "",layers = ""
+	string filenames = "",layers = "", wavenotes= ""
 	variable numimages = 0, realxmin, realxmax, realymin, realymax
 	string x_dims = ""
 	string uid_list = "",dark_list = "", fnamenum_str
@@ -2177,6 +2178,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 				layers += stringfromlist(k,list_of_image_nums_to_use) + ";"
 				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/primary/data/"+URLencode(tempwave[j])+"?format=tif" + apikey+"&slice="+stringfromlist(k,list_of_image_nums_to_use) + ";"
 				filenames +=cleanupname(uid,1,20)+replacestring(":",stringfromlist(k,list_of_image_nums_to_use),"a")+cleanupname(tempwave[j],1,10)+";"
+				wavenotes +="xsize:" + num2str(shape[2])+ ",ysize:"+num2str(shape[3])+";"
 				uid_list += uid + ";"
 				dark_list += "0"+ ";"
 			endfor
@@ -2186,6 +2188,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 				layers += ";" // always get all darks
 				dataurls += baseurl+"array/full/" + activeurl + "/" + uid + "/dark/data/"+URLencode(tempwave[j])+"?format=tif" + apikey+"&slice=:;"
 				filenames +=cleanupname(uid,1,20)+"d"+cleanupname(tempwave[j],1,9)+";"
+				wavenotes +="xsize:" + num2str(shape[2])+ ",ysize:"+num2str(shape[3])+";"
 				uid_list += uid + ";"
 				dark_list += darkstr+ ";"
 			endif
@@ -2198,11 +2201,11 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 		return ""
 	endif
 	
-	
-	make /free/n=(itemsinlist(x_dims)) /t slicingratio, uid_wave, dark_wave, layerwave
+	make /free/n=(itemsinlist(x_dims)) /t slicingratio, uid_wave, dark_wave, layerwave, noteswave
 	uid_wave = stringfromlist(p,uid_list)
 	dark_wave = stringfromlist(p,dark_list) // indicates if this file is for darks
 	layerwave = stringfromlist(p,layers)
+	noteswave = stringfromlist(p,wavenotes)
 	make /free/n=(itemsinlist(dark_list)) use_darks = str2num(stringfromlist(p,dark_list))
 	
 	slicingratio = num2str(get_slicing_ratio(numimages,1500,str2num(stringfromlist(p,x_dims))))
@@ -2219,6 +2222,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 	string cached_file_darks = ""
 	string cached_limits = ""
 	string cached_layers = ""
+	string cached_notes = ""
 	for(i=numpnts(file_names)-1;i>=0;i--)
 		getfileFolderInfo /q/z/P=tempfolder file_names[i]
 		if(v_flag==0 && V_logEOF > 500 && !forcedl)
@@ -2227,6 +2231,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 			cached_limits += limits[i] + ";"
 			cached_file_darks += dark_wave[i] + ";"
 			cached_layers += layerwave[i] + ";"
+			cached_notes += noteswave[i]
 			deletepoints i,1, dataurl_wave, file_paths, file_names, uid_wave, dark_wave, limits, layerwave
 		endif
 	endfor
@@ -2242,7 +2247,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 // load the images into the uid folder, split them out into individual images, plot them in plots
 	string wave_list = ""
 	string limstr
-	string layer
+	string layer, wavenote
 	for(i=0;i<numpnts(file_paths);i++)
 		uid = uid_wave[i]
 		limstr = limits[i]
@@ -2266,6 +2271,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 		limstr = limits[i]
 		darkstr = dark_wave[i]
 		layer = layerwave[i]
+		wavenote = noteswave[i]
 		setdatafolder homedf
 		newdatafolder /o/s $cleanupname(uid,0)
 		string /g datawave_list
@@ -2281,7 +2287,7 @@ function /s get_images([string lims, variable forcedl,variable only_last])
 				setscale /i x, str2num(stringfromlist(0,limstr,",")), str2num(stringfromlist(1,limstr,",")), newwave
 				setscale /i y, str2num(stringfromlist(2,limstr,",")), str2num(stringfromlist(3,limstr,",")), newwave
 			endif
-			note newwave, "layer:"+layer+";"
+			note newwave, "layer:"+layer+";" + wavenote
 			if(str2num(darkstr))
 				darkwave_list += getwavesdatafolder(newwave,2) + ";"
 			else
@@ -2429,6 +2435,7 @@ function update_image_plots([variable plot])
 	nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
 	nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
 	nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
+	variable xmin, xmax, ymin, ymax, xmean, ymean, xrange, yrange, leftimmax,leftimmin,bottomimmin, bottomimmax
 	setdatafolder root:Packages:RSoXS_Tiled
 	dfref homedf = getdataFolderDFR()
 	nvar min_val, max_val, logimage
@@ -2449,11 +2456,21 @@ function update_image_plots([variable plot])
 			ModifyImage /w=RSoXSTiled#images#$image_plot_names[imnum] ''#0, plane=j
 			ModifyGraph /w=RSoXSTiled#images#$image_plot_names[imnum] margin=1,nticks=0,standoff=0
 			// make the color scale the same
+			ymin = dimoffset(image,1)
+			xmin = dimoffset(image,0)
+			ymax = ymin + dimSize(image,1)*dimdelta(image,1)
+			xmax = xmin + dimSize(image,0)*dimdelta(image,0)
+			xrange = xmax-xmin
+			yrange = ymax-ymin
+			leftimmin = leftmin * yrange + ymin
+			leftimmax = leftmax * yrange + ymin
+			bottomimmin = botmin * xrange + xmin
+			bottomimmax = botmax * xrange + xmin
 			ModifyImage /w=RSoXSTiled#images#$image_plot_names[imnum] ''#0 log=logimage,ctab= {min_val,max_val,$colortab,0}
 			// make the plot limits the same
 			if(leftmin*leftmax*botmin*botmax*0==0)
-				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] left leftmin, leftmax
-				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] bottom botmin, botmax
+				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] left leftimmin, leftimmax
+				SetAxis /w=RSoXSTiled#images#$image_plot_names[imnum] bottom bottomimmin, bottomimmax
 			endif
 			k=numberbykey("layer",note(image))
 			k=numtype(k)==2? 0 : k
@@ -2461,6 +2478,7 @@ function update_image_plots([variable plot])
 			imnum+=1
 		endfor
 	endfor
+	DOupdate
 	SetWindow RSoXSTiled,hook(image_updates)=Tiled_RSoXS_window_hook
 end
 function update_monitor_plots()
@@ -3897,36 +3915,61 @@ Function Tiled_RSoXS_window_hook(s)
 	string axes_t, axisname, info, dummy
 	variable numaxes, i, j, f1, f2
 	variable relx, rely, scale, mouseLoc, cursorval, rangeinc, newmax, newmin
+	variable xmin, xmax, ymin, ymax, yrange, xrange
 	//print s.eventCode
 	switch(s.eventCode)
 		case 4:
 			break
+		case 3:
+			
 		case 11:
-		case 6:
-//		case 8: // modified
-//			GetWindow $s.winName activeSW
-//			if(!stringmatch(s_value,"*Tiled_image*"))
-//				break
-//			endif
-//			nvar /z leftmin = root:Packages:TiledRSoXS:leftmin
-//			nvar /z leftmax = root:Packages:TiledRSoXS:leftmax
-//			nvar /z botmin = root:Packages:TiledRSoXS:botmin
-//			nvar /z botmax = root:Packages:TiledRSoXS:botmax
-//			GetWindow $s.winName activeSW
-//			string subwindow = s_value
-//			//print subwindow
-//			getaxis /q/w=$(subwindow) left ;variable err = GetRTError(1)
-//			if(err)
-//				break
-//			endif
-//			leftmin = v_min
-//			leftmax = v_max
-//			getaxis /q/w=$(subwindow) bottom
-//			botmin = v_min
-//			botmax = v_max
-//			update_image_plots()
-//			hookresult = 1
-//			break
+			nvar /z clicked_ticks = root:Packages:RSoXS_Tiled:clicked_ticks
+			if(s.ticks - clicked_ticks < 20 || s.keycode==1) // home
+				nvar /z leftmin = root:Packages:RSoXS_Tiled:leftmin
+				nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
+				nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
+				nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
+				leftmin = 0
+				leftmax = 1
+				botmin = 0
+				botmax = 1
+				update_image_plots(plot=0)
+				hookresult = 1
+				break
+			else
+				clicked_ticks = s.ticks
+				break
+			endif
+		case 8:
+			if(!stringmatch(s.winName,"*Tiled_image*"))
+				break
+			endif
+			
+			nvar /z leftmin = root:Packages:RSoXS_Tiled:leftmin
+			nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
+			nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
+			nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
+			wave image = ImageNameToWaveRef(s.winName,stringfromlist(0,imageNameList(s.winName,";")))
+			ymin = dimoffset(image,1)
+			xmin = dimoffset(image,0)
+			ymax = ymin + dimSize(image,1)*dimdelta(image,1)
+			xmax = xmin + dimSize(image,0)*dimdelta(image,0)
+			xrange = xmax-xmin
+			yrange = ymax-ymin
+			
+			getaxis /q/w=$(s.winName) left ;variable err = GetRTError(1)
+			if(err)
+				break
+			endif
+			
+			leftmin = (v_min-ymin)/yrange
+			leftmax = (v_max-ymin)/yrange
+			getaxis/q /w=$(s.winName) bottom
+			botmin = (v_min-xmin)/xrange
+			botmax = (v_max-xmin)/xrange
+			update_image_plots(plot=0)
+			hookresult = 1
+			break
 		case 22:		// Scroll wheel
 			if(!stringmatch(s.winName,"*Tiled_image*"))
 				break
@@ -3935,10 +3978,18 @@ Function Tiled_RSoXS_window_hook(s)
 			nvar /z leftmax = root:Packages:RSoXS_Tiled:leftmax
 			nvar /z botmin = root:Packages:RSoXS_Tiled:botmin
 			nvar /z botmax = root:Packages:RSoXS_Tiled:botmax
+			
 			axes_t = axislist(s.winName)
 			numaxes = itemsinlist(axes_t)
 			make/n=(numaxes)/free/o/t axes, sz_name, sz_type
 			make/n=(numaxes)/free/o sz_relpos0, sz_relpos1, sz_min, sz_max
+			wave image = ImageNameToWaveRef(s.winName,stringfromlist(0,imageNameList(s.winName,";")))
+			ymin = dimoffset(image,1)
+			xmin = dimoffset(image,0)
+			ymax = ymin + dimSize(image,1)*dimdelta(image,1)
+			xmax = xmin + dimSize(image,0)*dimdelta(image,0)
+			xrange = xmax-xmin
+			yrange = ymax-ymin
 			
 			getwindow $(s.winName), psizeDC
 			rely = (s.mouseLoc.v - V_top) / (V_bottom - V_top)
@@ -3992,14 +4043,13 @@ Function Tiled_RSoXS_window_hook(s)
 				rangeinc = (sz_max[j] - sz_min[j]) * scale
 				newmax = sz_max[j] + -rangeinc * (sz_max[j] - cursorval) / (sz_max[j] - sz_min[j])
 				newmin = sz_min[j] - -rangeinc * (cursorval - sz_min[j]) / (sz_max[j] - sz_min[j])
-				//SetAxis /w=$(s.winName) $axes[j] newmin, newmax
 				
 				if ( stringmatch(sz_type[j], "top") || stringmatch(sz_type[j], "bottom") )
-					botmin = newmin
-					botmax = newmax
+					botmin = (newmin-xmin)/xrange
+					botmax = (newmax-xmin)/xrange
 				else
-					leftmin = newmin
-					leftmax = newmax
+					leftmin = (newmin-ymin)/yrange
+					leftmax = (newmax-ymin)/yrange
 				endif
 				
 			endfor
