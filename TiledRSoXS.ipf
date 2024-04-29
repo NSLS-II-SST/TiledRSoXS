@@ -3708,7 +3708,7 @@ function cleanup_output_NEXAFS(orig_name,new_name,[interps, interpf, minstep, we
 			if(V_numNans + V_numINFs < index_new-10)
 				//interpolate2 /i=3 /t=2 /y=interp_sweep sweep_x, sweep_y
 				interp_sweep = interp(final_x_wave[p], sweep_x, sweep_y )
-				if(abs(wavemax(sweep_x)-wavemax(final_x_wave)) + abs(wavemin(sweep_x)-wavemin(final_x_wave))>1)
+				if(abs(wavemax(sweep_x)-wavemax(final_x_wave)) + abs(wavemin(sweep_x)-wavemin(final_x_wave))>10)
 					continue // this sweep didn't finish so don't add it in.
 				endif
 				//average the sweeps with optional different weightings from forward (odd) and reverse (even) sweeps
