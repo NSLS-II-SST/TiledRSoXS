@@ -1309,7 +1309,7 @@ function /wave get_monitor_metadataurls()
 	make /wave /n=0 /o monitorwaves
 	string uid, testname
 	string list_of_urls = ""
-	string streambase, stream_url, time_url
+	string streambase, stream_url, time_url, safe_stream_base
 	for(i=0;i<dimsize(plans_sel_wave,0);i++)
 		if(plans_sel_wave[i])
 			uid = plans_list[i][5]
@@ -1319,15 +1319,16 @@ function /wave get_monitor_metadataurls()
 				testname = stringfromlist(j,stream_names[i])
 				if(stringmatch(testname,"*_monitor") && (whichListItem(testname,monitorlist_local)>-1 || nolist))
 					streambase = removeEnding(testname,"_monitor")
-	
+					safe_stream_base = URLENCODE(streambase)
 					stream_url = baseurl+"array/full/"+activeurl+ "/"
-					stream_url += uid+"/"+streambase+"_monitor/data/"
-					stream_url += streambase+"/?format=application/octet-stream" + apikey
+					stream_url += uid+"/"+safe_stream_base+"_monitor/data/"
+					stream_url += safe_stream_base+"/?format=application/octet-stream" + apikey
 					
 					time_url = baseurl+"array/full/"+activeurl+ "/"
-					time_url += uid+"/"+streambase+"_monitor/timestamps/"
-					time_url += streambase+"/?format=application/octet-stream" + apikey
+					time_url += uid+"/"+safe_stream_base+"_monitor/data/time"
+					time_url += "/?format=application/octet-stream" + apikey
 					list_of_urls += uid + ","+ streambase + "," + stream_url + ";"+ uid +","+ streambase +","+ time_url + ";"
+
 				endif
 			endfor
 			
