@@ -192,7 +192,7 @@ function update_list([variable skip_scan_update, variable only_last])
 			else
 				plan_name = s_value
 			endif
-			plans_list[i][0] = num2str(scan_id)
+			plans_list[i][0] = num2str(scan_id,"%.15g")
 			plans_list[i][1] = plan_name
 			plans_list[i][2] = sample
 			plans_list[i][3] = num2str(count) + stopstatus
