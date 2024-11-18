@@ -12,7 +12,7 @@ A somewhat general IgorPro based browser for Tiled.  Built for RSoXS, but useful
    - An api_key will be generated that looks like ``4efed#####3945``
 3) If not already done, install Igor.  Download the Igor json XOP (https://docs.byte-physics.de/json-xop/) and place it in Igor extensions (64 bit).  Open Igor 64-bit.
 4) Each time Igor is started, go to File --> Open File --> Procedure.  Open the TiledRSoXS.ipf file that was downloaded in step 1.  If the file does not automatically compile, hit the Compile button on the TiledRSoXS.ipf window.  Then, go to RSoXS --> TiledRSoXS.
-5) During the first time this is set up, you will be prompted for your api_key.  Paste the key that you got at the end of step 2.
+5) During the first time this is set up, you will be prompted for your api_key.  Paste the key that you got at the end of step 2.  Igor may need to be rebooted after this.
 6) Use the double arrow to move to the most recent data.  Scans can be filtered at the top using various keys such as sample_id, plan, etc. and their corresponding values, and then clicking Add.
 
 # Accessing Tiled from web browser
