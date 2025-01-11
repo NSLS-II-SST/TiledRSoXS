@@ -4,7 +4,7 @@ A somewhat general IgorPro based browser for Tiled.  Built for RSoXS, but useful
 # Installation:  
 1) Download or clone the TiledRSoXS.ipf file from this repository (https://github.com/NSLS-II-SST/TiledRSoXS).
 2) Do the following in a command line terminal either locally or on a remote machine like the NSLS II JupyterHub.  These steps should only need to be done once, the first time TiledRSoXS is being set up in Igor on this particular computer.
-   - Install Tiled[client]: ``pyrhon3 -m pip install "tiled[client]"``
+   - Install Tiled[client]: ``python3 -m pip install "tiled[client]"``
    - Run: ``tiled profile create --name nsls https://tiled.nsls2.bnl.gov/``
    - Run: ``tiled login --profile nsls``
    - You will be prompted for your BNL login credentials and a Duo two-factor push, similar to logging into other BNL webpages.
