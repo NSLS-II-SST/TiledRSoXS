@@ -306,7 +306,7 @@ Window RSoXSTiled() : Panel
 	ListBox list0,selWave=root:Packages:RSoXS_Tiled:plans_sel_wave
 	ListBox list0,titleWave=root:Packages:RSoXS_Tiled:plans_col_wave,mode=9
 	ListBox list0,widths={37,74,147,48,26,37},userColumnResize=1
-	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,18.00},bodyWidth=43,proc=SetVarProc,format="%d"
+	SetVariable requested_results_val,pos={71.00,242.00},size={43.00,18.00},bodyWidth=43,proc=SetVarProcTiledresults,format="%d"
 	SetVariable requested_results_val,title=" "
 	SetVariable requested_results_val,limits={-inf,inf,0},value=root:Packages:RSoXS_Tiled:offset
 	Button get_URL1,pos={143.00,241.00},size={24.00,21.00},proc=page_toend
@@ -380,7 +380,7 @@ Window RSoXSTiled() : Panel
 	PopupMenu primary_color_tab_pop,mode=10,value=#"\"*COLORTABLEPOP*\""
 	PopupMenu monitor_color_tab_pop,pos={1132.00,40.00},size={200.00,17.00},disable=1,proc=monitor_color_pop_proc
 	PopupMenu monitor_color_tab_pop,mode=13,value=#"\"*COLORTABLEPOP*\""
-	SetVariable num_requested_results_val,pos={265.00,244.00},size={118.00,18.00},bodyWidth=43,proc=SetVarProc
+	SetVariable num_requested_results_val,pos={265.00,244.00},size={118.00,18.00},bodyWidth=43,proc=SetVarProcTiledresults
 	SetVariable num_requested_results_val,title="results / page"
 	SetVariable num_requested_results_val,limits={1,100,1},value=root:Packages:RSoXS_Tiled:num_page
 	Button update_apikey,pos={132.00,29.00},size={96.00,16.00},proc=update_api_but
@@ -440,7 +440,7 @@ EndMacro
 
 
 
-Function SetVarProc(sva) : SetVariableControl
+Function SetVarProcTiledresults(sva) : SetVariableControl
 	STRUCT WMSetVariableAction &sva
 	sva.blockReentry = 1
 
